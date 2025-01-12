@@ -1,0 +1,30 @@
+# Halshow settings
+# This file is generated automatically.
+wm geometry . 1053x641+674+236
+placeFrames 0.3
+set ::ratio 0.3
+set ::old_w_leftf 160
+set ::watchlist {
+    sig+in-position
+    sig+home-z
+    sig+plasmac:float-switch
+    sig+home-y
+    sig+home-x
+    sig+plasmac:arc-ok-in
+    sig+plasmac:arc-voltage-in
+    sig+plasmac:arc-voltage-offset
+    sig+plasmac:arc-voltage-scale
+    pin+hm2_7i96s.0.encoder.00.input-a
+    pin+hm2_7i96s.0.encoder.00.input-b
+    pin+hm2_7i96s.0.encoder.00.count
+    pin+qtplasmac.arc_voltage_scale-f
+    pin+qtplasmac.arc_voltage_scale-s
+    pin+qtplasmac.arc_voltage_offset-f
+}
+set ::workmode watchhal
+set ::watchInterval 100
+set ::col1_width 100
+set ::ffmts 
+set ::ifmts 
+set ::alwaysOnTop 0
+set ::autoSaveWatchlist 1

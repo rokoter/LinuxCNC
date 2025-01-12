@@ -1,0 +1,20 @@
+--- QtVCP Screen Started on: Sat, Jan 11 2025 01:46:40 PM ---
+--- plasma - QtPlasmaC v2.9-238.314, powered by QtVCP and LinuxCNC ---
+Sat11 13:46: Tool 0: No Tool
+Sat11 13:46: Emergency stop cleared
+Sat11 13:46: GUI power on
+Sat11 13:47: Machine homed
+Sat11 13:47: Tool 0: torch
+Sat11 13:48: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sat11 13:48: Axis Limit Error:
+X move would exceed the minimum limit by 637.37mm
+Y move would exceed the minimum limit by 1329.71mm
+Sat11 13:49: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sat11 13:49: Axis Limit Error:
+Y move would exceed the minimum limit by 54.17mm
+Sat11 13:49: Program cleared
+Sat11 13:50: Program cleared
+Sat11 13:51: Cycle started - Torch disabled
+Sat11 13:51: Machine idle
+Sat11 13:51: Cycle started - Torch enabled
+Sat11 13:52: Machine idle

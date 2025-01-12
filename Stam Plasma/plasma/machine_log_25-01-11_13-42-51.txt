@@ -1,0 +1,26 @@
+--- QtVCP Screen Started on: Sat, Jan 11 2025 01:27:54 PM ---
+--- plasma - QtPlasmaC v2.9-238.314, powered by QtVCP and LinuxCNC ---
+Sat11 13:27: Tool 0: No Tool
+Sat11 13:28: Emergency stop cleared
+Sat11 13:28: GUI power on
+Sat11 13:28: Machine homed
+Sat11 13:28: Tool 0: torch
+Sat11 13:29: Probe test started
+Sat11 13:29: Probe test completed
+Sat11 13:30: Cycle started - Torch disabled
+Sat11 13:30: Machine idle
+Sat11 13:31: Machine homed
+Sat11 13:31: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sat11 13:31: Program cleared
+Sat11 13:32: Cycle started - Torch disabled
+Sat11 13:33: Machine idle
+Sat11 13:35: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sat11 13:36: Cycle started - Torch disabled
+Sat11 13:36: Machine idle
+Sat11 13:37: Cycle started - Torch disabled
+Sat11 13:37: Machine idle
+Sat11 13:37: Cycle started - Torch enabled
+Sat11 13:38: Machine idle
+Sat11 13:40: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sat11 13:41: Cycle started - Torch enabled
+Sat11 13:41: Machine idle

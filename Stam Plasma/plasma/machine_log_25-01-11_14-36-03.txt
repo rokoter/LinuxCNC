@@ -1,0 +1,13 @@
+--- QtVCP Screen Started on: Sat, Jan 11 2025 02:29:41 PM ---
+--- plasma - QtPlasmaC v2.9-238.314, powered by QtVCP and LinuxCNC ---
+Sat11 14:29: Tool 0: No Tool
+Sat11 14:30: Emergency stop cleared
+Sat11 14:30: GUI power on
+Sat11 14:30: GUI power off
+Sat11 14:30: GUI power on
+Sat11 14:30: GUI power off
+Sat11 14:30: Emergency stop pressed
+Sat11 14:33: Emergency stop cleared
+Sat11 14:33: GUI power on
+Sat11 14:33: GUI power off
+Sat11 14:34: hm2/hm2_7i96s.0: error finishing read! iter=275485
