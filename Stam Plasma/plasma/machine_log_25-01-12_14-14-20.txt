@@ -1,0 +1,76 @@
+--- QtVCP Screen Started on: Sun, Jan 12 2025 01:22:43 PM ---
+--- plasma - QtPlasmaC v2.9-238.314, powered by QtVCP and LinuxCNC ---
+Sun12 13:22: Tool 0: No Tool
+Sun12 13:28: Emergency stop cleared
+Sun12 13:28: GUI power on
+Sun12 13:29: Machine homed
+Sun12 13:29: Tool 0: torch
+Sun12 13:31: Cycle started - Torch disabled
+Sun12 13:31: Cycle paused
+Sun12 13:31: bottom limit reached while probing down.
+program is paused.
+Sun12 13:31: Cycle resumed
+Sun12 13:32: Machine idle
+Sun12 13:34: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 13:39: Cycle started - Torch enabled
+Sun12 13:39: Machine idle
+Sun12 13:40: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 13:40: Cycle started - Torch enabled
+Sun12 13:40: Cycle aborted
+Sun12 13:40: Machine idle
+Sun12 13:42: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 13:42: Cycle started - Torch enabled
+Sun12 13:42: Machine idle
+Sun12 13:43: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 13:43: Cycle started - Torch enabled
+Sun12 13:43: Machine idle
+Sun12 13:45: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 13:45: Cycle started - Torch enabled
+Sun12 13:45: Machine idle
+Sun12 13:46: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 13:46: Cycle started - Torch enabled
+Sun12 13:46: Machine idle
+Sun12 13:48: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 13:49: Cycle started - Torch enabled
+Sun12 13:49: Cycle paused
+Sun12 13:49: valid arc lost
+program is paused.
+Sun12 13:49: Cycle aborted
+Sun12 13:49: Machine idle
+Sun12 13:50: Float Switch has aborted active jogging
+Sun12 13:50: Float Switch has disabled jogging
+Sun12 13:50: Float Switch has disabled jogging
+Sun12 13:50: Float Switch has disabled jogging
+Sun12 13:50: Float Switch has disabled jogging
+Sun12 13:50: Machine homed
+Sun12 13:51: Float Switch has aborted active jogging
+Sun12 13:51: Float Switch has disabled jogging
+Sun12 13:51: Float Switch has disabled jogging
+Sun12 13:51: Machine homed
+Sun12 13:51: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 13:54: Cycle started - Torch enabled
+Sun12 13:54: Machine idle
+Sun12 13:55: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 13:55: Cycle started - Torch enabled
+Sun12 13:55: Cycle paused
+Sun12 13:55: valid arc lost
+program is paused.
+Sun12 13:56: Cycle aborted
+Sun12 13:56: Machine idle
+Sun12 13:56: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 13:56: Cycle started - Torch enabled
+Sun12 13:57: Machine idle
+Sun12 13:58: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 13:58: Cycle started - Torch enabled
+Sun12 13:58: Cycle paused
+Sun12 13:58: valid arc lost
+program is paused.
+Sun12 13:59: Cycle aborted
+Sun12 13:59: Machine idle
+Sun12 13:59: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 14:02: Program cleared
+Sun12 14:09: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 14:11: Program cleared
+Sun12 14:13: Cycle started - Torch enabled
+Sun12 14:13: Machine idle
+Sun12 14:14: Reloaded: /tmp/qtplasmac/sent_shape.ngc

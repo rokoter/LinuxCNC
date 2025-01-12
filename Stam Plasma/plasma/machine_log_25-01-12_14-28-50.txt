@@ -1,0 +1,4 @@
+--- QtVCP Screen Started on: Sun, Jan 12 2025 02:17:10 PM ---
+--- plasma - QtPlasmaC v2.9-238.314, powered by QtVCP and LinuxCNC ---
+Sun12 14:17: Tool 0: No Tool
+Sun12 14:17: Emergency stop cleared

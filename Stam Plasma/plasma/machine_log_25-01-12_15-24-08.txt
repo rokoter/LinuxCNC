@@ -1,0 +1,75 @@
+--- QtVCP Screen Started on: Sun, Jan 12 2025 02:36:15 PM ---
+--- plasma - QtPlasmaC v2.9-238.314, powered by QtVCP and LinuxCNC ---
+Sun12 14:36: Tool 0: No Tool
+Sun12 14:36: Emergency stop cleared
+Sun12 14:36: GUI power on
+Sun12 14:37: Machine homed
+Sun12 14:37: Tool 0: torch
+Sun12 14:38: Loaded: /home/plasma/linuxcnc/nc_files/examples/plasmac/metric_wrench.ngc
+Sun12 14:39: Program cleared
+Sun12 14:44: Program cleared
+Sun12 14:50: Machine homed
+Sun12 14:51: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 14:51: Cycle started - Torch enabled
+Sun12 14:51: Machine idle
+Sun12 14:52: Program cleared
+Sun12 14:53: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 14:54: Cycle started - Torch enabled
+Sun12 14:54: Machine idle
+Sun12 14:55: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 14:56: Cycle started - Torch enabled
+Sun12 14:56: Machine idle
+Sun12 14:56: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 14:57: Cycle started - Torch enabled
+Sun12 14:57: Machine idle
+Sun12 14:59: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 14:59: Cycle started - Torch enabled
+Sun12 14:59: Machine idle
+Sun12 15:00: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 15:00: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 15:01: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 15:01: Cycle started - Torch disabled
+Sun12 15:01: Machine idle
+Sun12 15:01: Cycle started - Torch enabled
+Sun12 15:02: Machine idle
+Sun12 15:05: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 15:05: Program cleared
+Sun12 15:07: Program cleared
+Sun12 15:07: Cycle started - Torch enabled
+Sun12 15:08: Cycle paused
+Sun12 15:08: float switch activated
+program is paused.
+Sun12 15:08: Cycle aborted
+Sun12 15:08: Machine idle
+Sun12 15:09: Probe test started
+Sun12 15:09: Probe test completed
+Sun12 15:09: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 15:09: Cycle started - Torch enabled
+Sun12 15:09: Machine idle
+Sun12 15:11: Probe test started
+Sun12 15:11: Probe test completed
+Sun12 15:13: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 15:13: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 15:14: Program cleared
+Sun12 15:15: Cycle started - Torch enabled
+Sun12 15:15: Machine idle
+Sun12 15:17: Reloaded: /tmp/qtplasmac/sent_shape.ngc
+Sun12 15:18: Program cleared
+Sun12 15:19: Cycle started - Torch enabled
+Sun12 15:19: Cycle aborted
+Sun12 15:19: Machine idle
+Sun12 15:21: Program cleared
+Sun12 15:22: Cycle started - Torch enabled
+Sun12 15:22: Cycle paused
+Sun12 15:22: bottom limit reached while probing down.
+program is paused.
+Sun12 15:22: Cycle aborted
+Sun12 15:22: Machine idle
+Sun12 15:22: Probe test started
+Sun12 15:22: bottom limit reached while probe testing.
+Sun12 15:22: Probe test completed
+Sun12 15:23: Cycle started - Torch enabled
+Sun12 15:23: Cycle aborted
+Sun12 15:23: Machine idle
+Sun12 15:23: GUI power off
+Sun12 15:23: Emergency stop pressed

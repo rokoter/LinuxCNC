@@ -15,8 +15,8 @@ MachineLogDialog_play_sound = True
 MachineLogDialog_sound_type = READY
 
 [BOOK_KEEPING]
-last_loaded_directory = /home/plasma/linuxcnc/nc_files/examples
-RecentPath_0 = None
+last_loaded_directory = /home/plasma/linuxcnc/nc_files/examples/plasmac
+RecentPath_0 = /home/plasma/linuxcnc/nc_files/examples/plasmac/metric_wrench.ngc
 style_QSS_Path = DEFAULT
 
 [SCREEN_OPTIONS]
@@ -27,7 +27,7 @@ desktop_notify = True
 notify_max_msgs = 10
 shutdown_check = False
 sound_player_on = False
-MainWindow-geometry = 5 122 1615 864
+MainWindow-geometry = 0 51 1920 1029
 
 [MCH_MSG_OPTIONS]
 mchnMsg_play_sound = True
