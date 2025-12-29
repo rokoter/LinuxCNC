@@ -1,0 +1,616 @@
+# LinuxCNC met EtherCAT op Fedora 43 KDE
+
+Complete installatiehandleiding voor LinuxCNC met EtherCAT ondersteuning op Fedora 43 KDE, specifiek voor servo motor ontwikkeling (IHSV57-30-14-36-EC).
+
+## Inhoudsopgave
+
+- [Overzicht](#overzicht)
+- [Vereisten](#vereisten)
+- [Installatie Stappen](#installatie-stappen)
+  - [Stap 1: Voorbereiding Fedora 43 KDE](#stap-1-voorbereiding-fedora-43-kde)
+  - [Stap 2: RT-kernel Installeren](#stap-2-rt-kernel-installeren)
+  - [Stap 3: RT-kernel Tuning](#stap-3-rt-kernel-tuning)
+  - [Stap 4: IgH EtherCAT Master](#stap-4-igh-ethercat-master)
+  - [Stap 5: LinuxCNC Dependencies](#stap-5-linuxcnc-dependencies)
+  - [Stap 6: LinuxCNC Compileren](#stap-6-linuxcnc-compileren)
+  - [Stap 7: Omgevingsvariabelen](#stap-7-omgevingsvariabelen)
+  - [Stap 8: EtherCAT Testen](#stap-8-ethercat-testen)
+  - [Stap 9: LinuxCNC EtherCAT Component](#stap-9-linuxcnc-ethercat-component)
+  - [Stap 10: Motor Configuratie](#stap-10-motor-configuratie)
+- [Troubleshooting](#troubleshooting)
+- [Bronnen](#bronnen)
+
+## Overzicht
+
+Deze handleiding beschrijft het complete proces om LinuxCNC met EtherCAT ondersteuning te installeren op Fedora 43 KDE. Het doel is om geïntegreerde servo motoren (zoals de IHSV57-30-14-36-EC) aan te kunnen sturen via EtherCAT communicatie.
+
+### Wat wordt geïnstalleerd?
+
+- Real-Time (RT) kernel voor deterministische timing
+- IgH EtherCAT Master voor EtherCAT communicatie
+- LinuxCNC 2.9 met EtherCAT ondersteuning
+- LinuxCNC-EtherCAT (lcec) HAL component
+
+## Vereisten
+
+### Hardware
+- Computer met Fedora 43 KDE (laptop of desktop)
+- Dedicated Ethernet NIC voor EtherCAT (geen WiFi)
+  - Intel NIC sterk aanbevolen voor productie
+  - USB 3.0 Ethernet adapter mogelijk voor ontwikkeling
+- EtherCAT servo motor (bijv. IHSV57-30-14-36-EC)
+
+### Software
+- Fedora 43 KDE (vers geïnstalleerd)
+- Internetverbinding voor downloads
+- Sudo/root toegang
+
+### Kennis
+- Basis Linux command-line kennis
+- Basis begrip van real-time systemen (nuttig)
+
+## Installatie Stappen
+
+### Stap 1: Voorbereiding Fedora 43 KDE
+
+Update het systeem en installeer benodigde ontwikkeltools:
+
+```bash
+# Systeem updaten
+sudo dnf update -y
+
+# Basis ontwikkeltools installeren
+sudo dnf groupinstall -y "Development Tools"
+
+# Benodigde packages installeren
+sudo dnf install -y git gcc-c++ make automake autoconf libtool \
+    kernel-devel kernel-headers elfutils-libelf-devel \
+    python3-devel gtk3-devel mesa-libGL-devel mesa-libGLU-devel \
+    readline-devel ncurses-devel libmodbus-devel
+```
+
+### Stap 2: RT-kernel Installeren
+
+Installeer de Real-Time kernel voor deterministische timing:
+
+```bash
+# Installeer de Real-Time kernel
+sudo dnf install -y kernel-rt kernel-rt-devel kernel-rt-modules kernel-rt-modules-extra
+
+# Check beschikbare kernels na installatie
+sudo grubby --info=ALL | grep ^kernel
+
+# Zoek de RT-kernel versie in de output (eindigt op .rt...)
+# Bijvoorbeeld: /boot/vmlinuz-6.11.5-200.rt14.fc43.x86_64
+
+# Stel RT-kernel in als default (pas het pad aan!)
+sudo grubby --set-default /boot/vmlinuz-6.11.5-200.rt14.fc43.x86_64
+
+# Reboot naar RT-kernel
+sudo reboot
+```
+
+**Verificatie na reboot:**
+
+```bash
+# Controleer of je de RT-kernel gebruikt
+uname -r
+# Output moet eindigen op ".rt..." bijvoorbeeld: 6.11.5-200.rt14.fc43.x86_64
+```
+
+### Stap 3: RT-kernel Tuning
+
+Configureer het systeem voor optimale real-time performance:
+
+```bash
+# Creëer RT configuratie bestand voor process prioriteiten
+sudo tee /etc/security/limits.d/99-rtprio.conf << EOF
+@realtime soft rtprio 99
+@realtime soft memlock unlimited
+@realtime hard rtprio 99
+@realtime hard memlock unlimited
+EOF
+
+# Maak realtime groep en voeg jezelf toe
+sudo groupadd realtime
+sudo usermod -a -G realtime $USER
+
+# Kernel parameters voor betere real-time performance
+sudo tee /etc/sysctl.d/99-realtime.conf << EOF
+# Real-time tuning
+kernel.sched_rt_runtime_us = -1
+vm.swappiness = 10
+EOF
+
+# Laad de nieuwe sysctl settings
+sudo sysctl -p /etc/sysctl.d/99-realtime.conf
+```
+
+**Belangrijk:** Log uit en weer in (of herstart) zodat de groep wijzigingen actief worden.
+
+### Stap 4: IgH EtherCAT Master
+
+Installeer de IgH EtherCAT Master - de industrie-standaard EtherCAT stack voor Linux:
+
+```bash
+# Maak development directory
+mkdir -p ~/linuxcnc-dev
+cd ~/linuxcnc-dev
+
+# Clone IgH EtherCAT repository
+git clone https://gitlab.com/etherlab.org/ethercat.git
+cd ethercat
+
+# Bootstrap (voor git repository)
+./bootstrap
+
+# Configureer voor jouw kernel
+# Opmerking: pas de --enable-XXX opties aan voor jouw NIC driver
+./configure --prefix=/opt/etherlab \
+    --with-linux-dir=/usr/src/kernels/$(uname -r) \
+    --enable-generic \
+    --enable-8139too=no \
+    --enable-e100=no \
+    --enable-e1000=no \
+    --enable-e1000e=no \
+    --enable-r8169=no \
+    --enable-igb=yes
+
+# Compileer (gebruikt alle CPU cores)
+make -j$(nproc)
+
+# Installeer
+sudo make install
+sudo depmod
+```
+
+#### EtherCAT Master Configureren
+
+```bash
+# Bepaal het MAC adres van je Ethernet NIC
+ip link show
+# Zoek je Ethernet interface (bijv. enp3s0) en noteer het MAC adres
+# Voorbeeld: 00:1a:2b:3c:4d:5e
+
+# Configureer EtherCAT master
+sudo mkdir -p /etc/sysconfig
+sudo tee /etc/sysconfig/ethercat << EOF
+MASTER0_DEVICE="00:1a:2b:3c:4d:5e"  # PAS DIT AAN NAAR JOUW MAC ADRES!
+DEVICE_MODULES="generic"
+EOF
+```
+
+**Belangrijk:** Vervang `00:1a:2b:3c:4d:5e` met het daadwerkelijke MAC adres van je NIC!
+
+#### Systemd Service Installeren
+
+```bash
+# Kopieer init script
+sudo cp /opt/etherlab/etc/init.d/ethercat /etc/init.d/
+
+# Creëer systemd service file
+sudo tee /etc/systemd/system/ethercat.service << EOF
+[Unit]
+Description=EtherCAT Master
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/opt/etherlab/bin/ethercatctl start
+ExecStop=/opt/etherlab/bin/ethercatctl stop
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Herlaad systemd en enable service
+sudo systemctl daemon-reload
+sudo systemctl enable ethercat
+sudo systemctl start ethercat
+
+# Check status
+sudo systemctl status ethercat
+```
+
+### Stap 5: LinuxCNC Dependencies
+
+Installeer alle benodigde dependencies voor LinuxCNC:
+
+```bash
+sudo dnf install -y \
+    tcl-devel tk-devel bwidget tclx python3-tkinter \
+    boost-devel libudev-devel yapps2 intltool \
+    python3-lxml python3-configobj desktop-file-utils \
+    python3-xlib mesa-libGLU-devel libXaw-devel
+```
+
+### Stap 6: LinuxCNC Compileren
+
+Compileer LinuxCNC vanaf source met EtherCAT ondersteuning:
+
+```bash
+cd ~/linuxcnc-dev
+
+# Clone LinuxCNC repository
+git clone https://github.com/LinuxCNC/linuxcnc.git
+cd linuxcnc
+
+# Checkout stable versie (of master voor nieuwste features)
+git checkout 2.9
+
+# Configureer met EtherCAT support
+cd src
+./autogen.sh
+
+./configure \
+    --with-realtime=uspace \
+    --enable-non-distributable=yes \
+    --with-boost-python=boost_python3 \
+    CPPFLAGS="-I/opt/etherlab/include" \
+    LDFLAGS="-L/opt/etherlab/lib"
+
+# Compileer (dit duurt 10-30 minuten afhankelijk van je systeem)
+make -j$(nproc)
+
+# Installeer
+sudo make install
+```
+
+### Stap 7: Omgevingsvariabelen
+
+Configureer de omgevingsvariabelen voor LinuxCNC en EtherCAT:
+
+```bash
+# Voeg toe aan je .bashrc
+tee -a ~/.bashrc << 'EOF'
+
+# LinuxCNC environment
+if [ -f /usr/local/etc/linuxcnc/linuxcnc.sh ]; then
+    . /usr/local/etc/linuxcnc/linuxcnc.sh
+fi
+
+# EtherCAT environment
+export PATH=/opt/etherlab/bin:/opt/etherlab/sbin:$PATH
+export LD_LIBRARY_PATH=/opt/etherlab/lib:$LD_LIBRARY_PATH
+EOF
+
+# Herlaad .bashrc
+source ~/.bashrc
+```
+
+### Stap 8: EtherCAT Testen
+
+Test of de EtherCAT master correct werkt:
+
+```bash
+# Check EtherCAT master status
+sudo /opt/etherlab/bin/ethercat master
+
+# Verwachte output:
+# Master0
+#   Phase: Idle
+#   Active: no
+#   Slaves: 0
+
+# Met motor aangesloten en ingeschakeld:
+sudo /opt/etherlab/bin/ethercat slaves
+
+# Dit zou je servo motor moeten tonen, bijvoorbeeld:
+# 0  0:0  PREOP  +  IHSV-EC Integrated Servo
+```
+
+**Belangrijke EtherCAT commando's:**
+
+```bash
+# Gedetailleerde slave informatie
+sudo ethercat slaves -v
+
+# SDO (Service Data Object) lezen
+sudo ethercat upload -p 0 -t uint32 0x1000 0
+
+# Alias toewijzen aan slave
+sudo ethercat alias -p 0 0x1000
+
+# XML beschrijving genereren (voor configuratie)
+sudo ethercat xml -p 0 > ~/ihsv57_slave.xml
+```
+
+### Stap 9: LinuxCNC EtherCAT Component
+
+Installeer de LinuxCNC EtherCAT (lcec) HAL component:
+
+```bash
+cd ~/linuxcnc-dev
+
+# Clone linuxcnc-ethercat repository
+git clone https://github.com/linuxcnc-ethercat/linuxcnc-ethercat.git
+cd linuxcnc-ethercat
+
+# Installeer extra dependencies
+sudo dnf install -y libxml2-devel
+
+# Configureer
+./configure \
+    --with-linuxcnc=/usr/local \
+    --with-ethercat=/opt/etherlab
+
+# Compileer en installeer
+make -j$(nproc)
+sudo make install
+
+# Verificatie
+ls -la /usr/local/lib/linuxcnc/modules/lcec*
+```
+
+### Stap 10: Motor Configuratie
+
+Nu kunnen we een basis LinuxCNC configuratie maken voor de IHSV57 motor.
+
+#### Slave Informatie Verzamelen
+
+```bash
+# Met motor aangesloten en ingeschakeld:
+sudo ethercat slaves -v
+
+# Noteer de volgende informatie:
+# - Vendor ID (bijvoorbeeld: 0x00000000)
+# - Product Code (bijvoorbeeld: 0x00000000)
+# - Revision Number
+```
+
+#### Basis LinuxCNC Configuratie Aanmaken
+
+```bash
+# Start LinuxCNC configuratie wizard
+linuxcnc
+
+# Of gebruik Stepconf Wizard voor basis configuratie
+stepconf
+```
+
+#### EtherCAT XML Configuratie
+
+Creëer een EtherCAT configuratie bestand `ethercat-conf.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<masters>
+  <master idx="0" appTimePeriod="1000000" refClockSyncCycles="1">
+    <slave idx="0" type="IHSV_EC" name="servo">
+      <dcConf assignActivate="300" sync0Cycle="*1" sync0Shift="0"/>
+    </slave>
+  </master>
+</masters>
+```
+
+#### HAL Configuratie
+
+Voeg toe aan je HAL configuratie bestand (bijvoorbeeld `custom.hal`):
+
+```hal
+# Load EtherCAT master
+loadrt lcec
+loadrt cia402 count=1
+
+# Load motion controller
+loadrt [KINS]KINEMATICS
+loadrt [EMCMOT]EMCMOT servo_period_nsec=[EMCMOT]SERVO_PERIOD num_joints=[KINS]JOINTS
+
+# Add EtherCAT master to servo thread
+addf lcec.read-all servo-thread
+addf cia402.0.read-all servo-thread
+addf motion-command-handler servo-thread
+addf motion-controller servo-thread
+addf cia402.0.write-all servo-thread
+addf lcec.write-all servo-thread
+
+# Configure servo drive (pas aan voor jouw motor)
+setp cia402.0.csp-mode 1
+setp cia402.0.pos-scale 10000
+
+# Connect position command
+net x-pos-cmd axis.0.motor-pos-cmd => cia402.0.pos-cmd
+net x-pos-fb cia402.0.pos-fb => axis.0.motor-pos-fb
+
+# Connect enable
+net x-enable axis.0.amp-enable-out => cia402.0.enable
+
+# EtherCAT slave to CiA402
+net ec-servo-status lcec.0.servo.cia-state => cia402.0.status-word
+net ec-servo-control cia402.0.control-word => lcec.0.servo.cia-controlword
+net ec-servo-pos-cmd cia402.0.position-cmd => lcec.0.servo.cia-position-cmd
+net ec-servo-pos-fb lcec.0.servo.cia-position-fb => cia402.0.position-fb
+```
+
+**Opmerking:** Deze HAL configuratie is een basis voorbeeld. De exacte configuratie hangt af van:
+- De EtherCAT slave configuratie van je motor
+- De gewenste sturingmode (CSV, CSP, CST)
+- Je machine kinematica
+
+## Troubleshooting
+
+### EtherCAT Master Start Niet
+
+```bash
+# Check journalctl logs
+sudo journalctl -u ethercat.service -n 50
+
+# Check of de NIC correct is geconfigureerd
+cat /etc/sysconfig/ethercat
+
+# Test handmatig
+sudo /opt/etherlab/bin/ethercatctl start
+```
+
+### Geen Slaves Gevonden
+
+```bash
+# Check of de motor is aangesloten en heeft stroom
+# Check Ethernet kabel (gebruik CAT5e of hoger)
+
+# Check EtherCAT state
+sudo ethercat master
+sudo ethercat slaves
+
+# Check dmesg voor errors
+sudo dmesg | grep -i ethercat
+```
+
+### Hoge Latency
+
+```bash
+# Run latency test
+latency-test
+
+# Verwachte waarden:
+# - Base thread: < 10000 ns (niet gebruikt in servo setup)
+# - Servo thread: < 50000 ns (goed), < 100000 ns (acceptabel)
+
+# Als latency te hoog:
+# 1. Isoleer CPU cores voor real-time
+# 2. Disable CPU power management
+# 3. Disable hyperthreading
+# 4. Check IRQ conflicts
+```
+
+### LinuxCNC Start Niet
+
+```bash
+# Check environment
+echo $PATH | grep linuxcnc
+echo $LD_LIBRARY_PATH | grep etherlab
+
+# Test LinuxCNC
+linuxcnc --version
+
+# Check debug output
+linuxcnc -d 5
+```
+
+### EtherCAT HAL Component Laadt Niet
+
+```bash
+# Check of lcec module bestaat
+ls -la /usr/local/lib/linuxcnc/modules/lcec*
+
+# Test laden van module
+halcmd loadrt lcec
+
+# Check errors
+dmesg | tail -n 50
+```
+
+## Geavanceerde Configuratie
+
+### CPU Isolation voor Real-Time
+
+Voor productie-systemen kan je CPU cores isoleren:
+
+```bash
+# Edit GRUB configuratie
+sudo nano /etc/default/grub
+
+# Voeg toe aan GRUB_CMDLINE_LINUX:
+# isolcpus=2,3 nohz_full=2,3 rcu_nocbs=2,3
+
+# Update GRUB
+sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+sudo reboot
+```
+
+### IRQ Tuning
+
+```bash
+# Vind IRQ van je EtherCAT NIC
+cat /proc/interrupts | grep eth
+
+# Bind IRQ aan specifieke CPU core
+sudo tee /etc/systemd/system/irqbalance.service.d/override.conf << EOF
+[Service]
+Environment="IRQBALANCE_BANNED_CPUS=0c"
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl restart irqbalance
+```
+
+### Network Interface Optimalisatie
+
+```bash
+# Disable network power management
+sudo ethtool -s enp3s0 wol d
+
+# Increase ring buffers
+sudo ethtool -G enp3s0 rx 4096 tx 4096
+
+# Disable offloading
+sudo ethtool -K enp3s0 gro off
+sudo ethtool -K enp3s0 tso off
+sudo ethtool -K enp3s0 gso off
+```
+
+## Testen van de Motor
+
+Basis test procedure (VOORZICHTIG):
+
+1. **Safety first:**
+   - Motor moet vrij kunnen draaien (niet belast)
+   - Noodstop binnen handbereik
+   - Begin met lage snelheden
+
+2. **Start LinuxCNC:**
+   ```bash
+   linuxcnc /path/to/your/config.ini
+   ```
+
+3. **Enable machine:**
+   - F1 (estop uit)
+   - F2 (machine aan)
+
+4. **Test jog:**
+   - Selecteer X-as
+   - Gebruik pijltjestoetsen voor kleine bewegingen
+   - Monitor feedback positie
+
+5. **G-code test:**
+   ```gcode
+   G21 (millimeters)
+   G90 (absolute mode)
+   F100 (feed rate)
+   G0 X10
+   G0 X0
+   ```
+
+## Bronnen
+
+### Officiële Documentatie
+- [LinuxCNC Documentatie](https://linuxcnc.org/docs/html/)
+- [IgH EtherCAT Master](https://etherlab.org/en/ethercat/)
+- [LinuxCNC EtherCAT](https://github.com/linuxcnc-ethercat/linuxcnc-ethercat)
+
+### Community
+- [LinuxCNC Forum](https://forum.linuxcnc.org/)
+- [LinuxCNC Wiki](https://wiki.linuxcnc.org/)
+
+### Hardware Informatie
+- IHSV57-30-14-36-EC Servo Motor Handleiding
+- EtherCAT specificaties: [ETG](https://www.ethercat.org/)
+
+## Licentie
+
+Deze handleiding is vrij beschikbaar voor persoonlijk en educatief gebruik.
+
+## Bijdragen
+
+Verbeteringen en correcties zijn welkom! Open een issue of pull request op GitHub.
+
+## Disclaimer
+
+Deze handleiding is bedoeld als educatieve resource. De auteur is niet verantwoordelijk voor schade aan hardware of letsel als gevolg van het volgen van deze instructies. Werk altijd veilig met machines en elektronica.
+
+---
+
+**Laatst bijgewerkt:** December 2025  
+**Versie:** 1.0  
+**Getest op:** Fedora 43 KDE, LinuxCNC 2.9, kernel-rt 6.11.5
