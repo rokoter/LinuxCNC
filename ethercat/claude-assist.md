@@ -24,6 +24,8 @@ Complete installatiehandleiding voor LinuxCNC met EtherCAT ondersteuning op Fedo
 
 Deze handleiding beschrijft het complete proces om LinuxCNC met EtherCAT ondersteuning te installeren op Fedora 43 KDE. Het doel is om geïntegreerde servo motoren (zoals de IHSV57-30-14-36-EC) aan te kunnen sturen via EtherCAT communicatie.
 
+**Update December 2025:** De precompiled RT-kernel packages zijn momenteel niet beschikbaar in Fedora 43 repositories. Deze guide biedt meerdere opties, inclusief het compileren van een RT-kernel of het gebruik van de standaard preemptible kernel voor development.
+
 ### Wat wordt geïnstalleerd?
 
 - Real-Time (RT) kernel voor deterministische timing
@@ -60,7 +62,8 @@ Update het systeem en installeer benodigde ontwikkeltools:
 sudo dnf update -y
 
 # Basis ontwikkeltools installeren
-sudo dnf groupinstall -y "Development Tools"
+# Let op: Fedora 43 gebruikt dnf5, gebruik 'group install' i.p.v. 'groupinstall'
+sudo dnf group install -y "Development Tools"
 
 # Benodigde packages installeren
 sudo dnf install -y git gcc-c++ make automake autoconf libtool \
@@ -71,31 +74,89 @@ sudo dnf install -y git gcc-c++ make automake autoconf libtool \
 
 ### Stap 2: RT-kernel Installeren
 
-Installeer de Real-Time kernel voor deterministische timing:
+**Belangrijke Opmerking voor Fedora 43:** De precompiled RT-kernel packages zijn momenteel niet beschikbaar in de standaard Fedora 43 repositories. Er zijn twee opties:
+
+#### Optie A: Wacht op officiële RT-kernel (Aanbevolen voor beginners)
+
+Fedora brengt meestal RT-kernels uit, maar mogelijk met vertraging. Check regelmatig:
 
 ```bash
-# Installeer de Real-Time kernel
+# Check of RT-kernel beschikbaar is
+sudo dnf search kernel-rt
+
+# Als beschikbaar, installeer:
 sudo dnf install -y kernel-rt kernel-rt-devel kernel-rt-modules kernel-rt-modules-extra
+```
 
-# Check beschikbare kernels na installatie
-sudo grubby --info=ALL | grep ^kernel
+#### Optie B: Compileer RT-kernel vanaf source (Gevorderd)
 
-# Zoek de RT-kernel versie in de output (eindigt op .rt...)
-# Bijvoorbeeld: /boot/vmlinuz-6.11.5-200.rt14.fc43.x86_64
+Voor nu kunnen we een RT-kernel compileren vanaf source:
 
-# Stel RT-kernel in als default (pas het pad aan!)
-sudo grubby --set-default /boot/vmlinuz-6.11.5-200.rt14.fc43.x86_64
+```bash
+# Installeer extra build dependencies
+sudo dnf install -y rpm-build rpmdevtools ncurses-devel hmaccalc \
+    zlib-devel binutils-devel elfutils-libelf-devel openssl-devel \
+    perl-devel perl-generators pesign bc dwarves bison flex
 
-# Reboot naar RT-kernel
+# Download kernel source
+cd ~/linuxcnc-dev
+# Check de nieuwste versie op kernel.org/pub/linux/kernel/projects/rt/
+KERNEL_VERSION="6.12"  # Pas aan naar beschikbare versie
+RT_PATCH="6.12-rt11"   # Pas aan naar beschikbare RT patch
+
+wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz
+wget https://cdn.kernel.org/pub/linux/kernel/projects/rt/6.12/patch-${RT_PATCH}.patch.xz
+
+# Uitpakken
+tar xf linux-${KERNEL_VERSION}.tar.xz
+cd linux-${KERNEL_VERSION}
+xzcat ../patch-${RT_PATCH}.patch.xz | patch -p1
+
+# Kopieer huidige kernel config
+cp /boot/config-$(uname -r) .config
+make olddefconfig
+
+# Enable RT PREEMPT
+# Gebruik menuconfig om PREEMPT_RT te selecteren:
+# General setup -> Preemption Model -> Fully Preemptible Kernel (RT)
+make menuconfig
+
+# Compileer (dit duurt 30-60 minuten)
+make -j$(nproc)
+sudo make modules_install
+sudo make install
+
+# Update GRUB
+sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+
+# Reboot
 sudo reboot
 ```
+
+#### Optie C: Gebruik standaard kernel met PREEMPT (Voor Development)
+
+Voor initial development en testing kun je ook de standaard Fedora kernel gebruiken die al `CONFIG_PREEMPT` heeft:
+
+```bash
+# Check huidige preemption model
+cat /boot/config-$(uname -r) | grep PREEMPT
+
+# Als je CONFIG_PREEMPT=y ziet, heb je al een preemptible kernel
+# Dit is goed genoeg voor development en testing
+```
+
+De standaard Fedora kernel heeft meestal `CONFIG_PREEMPT=y` wat geschikt is voor development. Voor productie is een echte RT-kernel (`PREEMPT_RT`) beter.
 
 **Verificatie na reboot:**
 
 ```bash
-# Controleer of je de RT-kernel gebruikt
+# Controleer kernel versie
 uname -r
-# Output moet eindigen op ".rt..." bijvoorbeeld: 6.11.5-200.rt14.fc43.x86_64
+
+# Check preemption model
+cat /proc/version
+# Of
+grep PREEMPT /boot/config-$(uname -r)
 ```
 
 ### Stap 3: RT-kernel Tuning
