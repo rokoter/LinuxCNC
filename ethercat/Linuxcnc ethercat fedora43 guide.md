@@ -62,8 +62,11 @@ Update het systeem en installeer benodigde ontwikkeltools:
 sudo dnf update -y
 
 # Basis ontwikkeltools installeren
-# Let op: Fedora 43 gebruikt dnf5, gebruik 'group install' i.p.v. 'groupinstall'
-sudo dnf group install -y "Development Tools"
+# Fedora 43 gebruikt dnf5 met @ syntax voor groepen
+sudo dnf install -y @development-tools
+
+# Als @development-tools niet werkt, probeer:
+# sudo dnf install -y @c-development
 
 # Benodigde packages installeren
 sudo dnf install -y git gcc-c++ make automake autoconf libtool \
@@ -90,7 +93,31 @@ sudo dnf install -y kernel-rt kernel-rt-devel kernel-rt-modules kernel-rt-module
 
 #### Optie B: Compileer RT-kernel vanaf source (Gevorderd)
 
-Voor nu kunnen we een RT-kernel compileren vanaf source:
+Voor nu kunnen we een RT-kernel compileren vanaf source. Ik heb een script gemaakt dat automatisch de nieuwste versie downloadt:
+
+**Download het helper script:**
+
+```bash
+# Maak development directory aan (als die nog niet bestaat)
+mkdir -p ~/linuxcnc-dev
+cd ~/linuxcnc-dev
+
+# Download het script
+wget https://raw.githubusercontent.com/[jouw-repo]/download-rt-kernel.sh
+# Of kopieer het handmatig (zie download-rt-kernel.sh in de repo)
+
+chmod +x download-rt-kernel.sh
+
+# Voer het script uit
+./download-rt-kernel.sh
+```
+
+Het script zal automatisch:
+- De nieuwste RT kernel versie vinden
+- Kernel source en RT patch downloaden
+- Een helper script maken om uit te pakken en te patchen
+
+**Handmatige methode (als je het script niet wilt gebruiken):**
 
 ```bash
 # Installeer extra build dependencies
@@ -98,11 +125,14 @@ sudo dnf install -y rpm-build rpmdevtools ncurses-devel hmaccalc \
     zlib-devel binutils-devel elfutils-libelf-devel openssl-devel \
     perl-devel perl-generators pesign bc dwarves bison flex
 
-# Download kernel source
+# Maak development directory aan (als die nog niet bestaat)
+mkdir -p ~/linuxcnc-dev
 cd ~/linuxcnc-dev
-# Check de nieuwste versie op kernel.org/pub/linux/kernel/projects/rt/
-KERNEL_VERSION="6.12"  # Pas aan naar beschikbare versie
-RT_PATCH="6.12-rt11"   # Pas aan naar beschikbare RT patch
+
+# Vind de nieuwste versie op: https://kernel.org/pub/linux/kernel/projects/rt/
+# Bijvoorbeeld voor 6.12:
+KERNEL_VERSION="6.12"
+RT_PATCH="6.12-rt11"
 
 wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${KERNEL_VERSION}.tar.xz
 wget https://cdn.kernel.org/pub/linux/kernel/projects/rt/6.12/patch-${RT_PATCH}.patch.xz
@@ -194,7 +224,7 @@ sudo sysctl -p /etc/sysctl.d/99-realtime.conf
 Installeer de IgH EtherCAT Master - de industrie-standaard EtherCAT stack voor Linux:
 
 ```bash
-# Maak development directory
+# Maak development directory aan
 mkdir -p ~/linuxcnc-dev
 cd ~/linuxcnc-dev
 
@@ -205,17 +235,22 @@ cd ethercat
 # Bootstrap (voor git repository)
 ./bootstrap
 
+# Maak symlink naar kernel sources (voor zelfgecompileerde RT-kernel)
+sudo rm -f /lib/modules/$(uname -r)/build
+sudo ln -s ~/linuxcnc-dev/linux-6.16 /lib/modules/$(uname -r)/build
+
 # Configureer voor jouw kernel
-# Opmerking: pas de --enable-XXX opties aan voor jouw NIC driver
+# Let op: we gebruiken --enable-generic (werkt met alle NICs)
+# en --enable-igb=no omdat de igb driver mogelijk niet beschikbaar is voor alle kernel versies
 ./configure --prefix=/opt/etherlab \
-    --with-linux-dir=/usr/src/kernels/$(uname -r) \
+    --with-linux-dir=/lib/modules/$(uname -r)/build \
     --enable-generic \
     --enable-8139too=no \
     --enable-e100=no \
     --enable-e1000=no \
     --enable-e1000e=no \
     --enable-r8169=no \
-    --enable-igb=yes
+    --enable-igb=no
 
 # Compileer (gebruikt alle CPU cores)
 make -j$(nproc)
@@ -225,31 +260,54 @@ sudo make install
 sudo depmod
 ```
 
+**Belangrijke opmerkingen:**
+- De **generic driver** (`--enable-generic`) werkt met vrijwel alle Ethernet NICs
+- De symlink naar de kernel sources is nodig voor zelfgecompileerde kernels
+- Voor productie kun je later een specifieke driver gebruiken voor betere performance
+- Voor development en testing is de generic driver perfect geschikt
+
 #### EtherCAT Master Configureren
 
 ```bash
 # Bepaal het MAC adres van je Ethernet NIC
 ip link show
-# Zoek je Ethernet interface (bijv. enp3s0) en noteer het MAC adres
-# Voorbeeld: 00:1a:2b:3c:4d:5e
+# Zoek je Ethernet interface en noteer zowel de naam als het MAC adres
+# Voorbeeld: enp0s31f6 met MAC e8:6a:64:89:3d:f7
 
-# Configureer EtherCAT master
-sudo mkdir -p /etc/sysconfig
-sudo tee /etc/sysconfig/ethercat << EOF
-MASTER0_DEVICE="00:1a:2b:3c:4d:5e"  # PAS DIT AAN NAAR JOUW MAC ADRES!
-DEVICE_MODULES="generic"
-EOF
+# Bewerk de EtherCAT configuratie file
+sudo nano /opt/etherlab/etc/ethercat.conf
 ```
 
-**Belangrijk:** Vervang `00:1a:2b:3c:4d:5e` met het daadwerkelijke MAC adres van je NIC!
+**In de config file, zoek en wijzig de volgende regels:**
+
+1. `MASTER0_DEVICE=""` → `MASTER0_DEVICE="e8:6a:64:89:3d:f7"` (jouw MAC adres)
+2. `DEVICE_MODULES=""` → `DEVICE_MODULES="generic"`
+3. `UPDOWN_INTERFACES=""` → `UPDOWN_INTERFACES="enp0s31f6"` (jouw interface naam)
+
+**Of gebruik sed om automatisch te wijzigen:**
+
+```bash
+# Pas deze variabelen aan naar jouw situatie!
+MAC_ADDRESS="e8:6a:64:89:3d:f7"     # Vervang met jouw MAC adres
+INTERFACE="enp0s31f6"                # Vervang met jouw interface naam
+
+# Automatisch aanpassen
+sudo sed -i "s/^MASTER0_DEVICE=\"\"$/MASTER0_DEVICE=\"$MAC_ADDRESS\"/" /opt/etherlab/etc/ethercat.conf
+sudo sed -i 's/^DEVICE_MODULES=""$/DEVICE_MODULES="generic"/' /opt/etherlab/etc/ethercat.conf
+sudo sed -i "s/^UPDOWN_INTERFACES=\"\"$/UPDOWN_INTERFACES=\"$INTERFACE\"/" /opt/etherlab/etc/ethercat.conf
+
+# Verifieer de wijzigingen
+grep -E "MASTER0_DEVICE|DEVICE_MODULES|UPDOWN_INTERFACES" /opt/etherlab/etc/ethercat.conf
+```
+
+**Belangrijk:** 
+- Gebruik het MAC adres van je **bedrade** Ethernet interface (niet WiFi)
+- De interface moet een fysieke Ethernet poort zijn voor EtherCAT
 
 #### Systemd Service Installeren
 
 ```bash
-# Kopieer init script
-sudo cp /opt/etherlab/etc/init.d/ethercat /etc/init.d/
-
-# Creëer systemd service file
+# Creëer systemd service file (let op: ethercatctl staat in /sbin, niet /bin)
 sudo tee /etc/systemd/system/ethercat.service << EOF
 [Unit]
 Description=EtherCAT Master
@@ -257,8 +315,8 @@ After=network.target
 
 [Service]
 Type=forking
-ExecStart=/opt/etherlab/bin/ethercatctl start
-ExecStop=/opt/etherlab/bin/ethercatctl stop
+ExecStart=/opt/etherlab/sbin/ethercatctl start
+ExecStop=/opt/etherlab/sbin/ethercatctl stop
 RemainAfterExit=yes
 
 [Install]
@@ -273,6 +331,8 @@ sudo systemctl start ethercat
 # Check status
 sudo systemctl status ethercat
 ```
+
+**Verwachte output:** `Active: active (exited)` - dit is correct voor een forking service.
 
 ### Stap 5: LinuxCNC Dependencies
 
