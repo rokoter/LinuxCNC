@@ -1,0 +1,263 @@
+# ============================================================================
+# Control Panel HAL Configuration
+# Mesa 7i96S Ethernet FPGA card
+# ============================================================================
+# Hardware:
+# - Emergency stop button (NC contact)
+# - Start pulse button (NO contact)  
+# - ALPS RSA0N11M9 motorized fader (100mm)
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Load Mesa 7i96S driver
+# ----------------------------------------------------------------------------
+loadrt hostmot2
+loadrt hm2_eth board_ip="192.168.1.121" config="num_encoders=0 num_pwmgens=1 num_stepgens=0"
+setp hm2_7i96s.0.watchdog.timeout_ns 5000000
+
+# ----------------------------------------------------------------------------
+# Load HAL components
+# ----------------------------------------------------------------------------
+loadrt threads name1=servo-thread period1=1000000  # 1ms servo thread
+loadrt pid names=fader-pid
+loadrt scale names=fader-scale-in,fader-scale-out
+loadrt estop_latch
+loadrt debounce cfg=3  # 3 inputs to debounce
+
+# ----------------------------------------------------------------------------
+# Add functions to servo thread
+# ----------------------------------------------------------------------------
+addf hm2_7i96s.0.read         servo-thread
+addf debounce.0               servo-thread
+addf estop-latch.0            servo-thread
+addf fader-scale-in           servo-thread
+addf fader-pid.do-pid-calcs   servo-thread
+addf fader-scale-out          servo-thread
+addf hm2_7i96s.0.write        servo-thread
+
+# ============================================================================
+# EMERGENCY STOP
+# ============================================================================
+# Mesa pin: TB2-01 (GPIO 0) - Connect NC contact of E-stop button
+setp hm2_7i96s.0.gpio.000.is_output false
+setp hm2_7i96s.0.gpio.000.invert_output false
+
+# Debounce settings (3 inputs: estop, start, manual-fader-detect)
+setp debounce.0.delay 10  # 10ms debounce
+
+# Connect raw estop signal to debouncer
+net estop-raw hm2_7i96s.0.gpio.000.in => debounce.0.0.in
+
+# Estop latch logic
+net estop-debounced debounce.0.0.out => estop-latch.0.ok-in
+net estop-user-enable estop-latch.0.ok-out => iocontrol.0.emc-enable-in
+net estop-reset iocontrol.0.user-request-enable => estop-latch.0.reset
+net estop-fault estop-latch.0.fault-out
+
+# ============================================================================
+# START PULSE BUTTON
+# ============================================================================
+# Mesa pin: TB2-02 (GPIO 1) - Connect NO contact of start button
+setp hm2_7i96s.0.gpio.001.is_output false
+
+net start-button-raw hm2_7i96s.0.gpio.001.in => debounce.0.1.in
+net start-button debounce.0.1.out => halui.program.run
+
+# ============================================================================
+# START BUTTON LED (OPTIONAL)
+# ============================================================================
+# If using Heschen 16mm button with integrated LED (12V)
+# Behavior:
+#   - E-stop active: LED OFF
+#   - Standby (no e-stop, not running): LED BLINKS
+#   - Machine running: LED ON (continuous)
+#
+# To enable: uncomment the following section
+# ============================================================================
+
+## Load components for LED blink control
+#loadrt siggen names=led-blink
+#loadrt mux2 names=led-mux
+#loadrt timedelay names=machine-running-delay
+#loadrt and2 names=led-gate
+#
+#addf led-blink.update servo-thread
+#addf led-mux servo-thread
+#addf machine-running-delay servo-thread
+#addf led-gate servo-thread
+#
+## Configure GPIO for LED output
+## Mesa pin: TB2-10 (GPIO 5)
+#setp hm2_7i96s.0.gpio.005.is_output true
+#
+## Blink generator: 0.5 Hz = blink every 2 seconds (1s on, 1s off)
+#setp led-blink.frequency 0.5
+#setp led-blink.amplitude 1.0
+#setp led-blink.offset 0.0
+#
+## Detect if machine is running
+## Small delay to prevent flicker during start/stop
+#setp machine-running-delay.on-delay 0.2
+#setp machine-running-delay.off-delay 0.5
+#net program-running halui.program.is-running => machine-running-delay.in
+#net machine-is-running machine-running-delay.out
+#
+## LED multiplexer:
+## in0 = blink signal (standby mode)
+## in1 = continuous ON (running mode)
+## sel = switch between modes based on machine state
+#net led-blink-signal led-blink.square => led-mux.in0
+#sets led-mux.in1 true
+#net machine-is-running => led-mux.sel
+#net led-raw-output led-mux.out
+#
+## Only enable LED if no e-stop (gate with e-stop status)
+#net led-raw-output => led-gate.in0
+#net estop-user-enable => led-gate.in1
+#net start-button-led led-gate.out => hm2_7i96s.0.gpio.005.out
+#
+## LED Wiring Notes:
+## ==================
+## Heschen button LED is 12V, Mesa GPIO is 24V
+## 
+## Option A: Use current limiting resistor
+##   LED+ → Mesa TB2-10 (GPIO 5)
+##   LED- → 1.2kΩ resistor → GND
+##   Resistor value: (24V - 12V) / 10mA = 1.2kΩ
+##
+## Option B: Use transistor with separate 12V supply (recommended)
+##   Mesa TB2-10 → 1kΩ → Base (NPN transistor like 2N2222)
+##   Collector → LED+
+##   Emitter → GND
+##   LED- → 12V supply GND
+##
+## Adjust blink frequency:
+##   Slow: setp led-blink.frequency 0.25  (blink every 4 sec)
+##   Fast: setp led-blink.frequency 1.0   (blink every 1 sec)
+##   Default: 0.5 Hz (every 2 sec)
+##
+## ============================================================================
+
+# ============================================================================
+# MOTORIZED FADER - Position Feedback
+# ============================================================================
+# Mesa analog input: TB3-14/15 (Analog Input 0)
+# Connect ALPS fader potentiometer:
+#   - Wiper to Analog In 0
+#   - One end to +10V (or +5V)
+#   - Other end to GND
+# The potentiometer voltage represents physical fader position
+
+# Scale analog input (0-10V) to feed override percentage (0-200%)
+setp fader-scale-in.gain 20.0     # 10V → 200%
+setp fader-scale-in.offset 0.0
+
+net fader-voltage-raw hm2_7i96s.0.analog.00.in => fader-scale-in.in
+net fader-position-fb fader-scale-in.out
+
+# ============================================================================
+# MOTORIZED FADER - Motor Control with PID
+# ============================================================================
+# Mesa PWM output: TB2-06 (PWM 0) - Connect to motor driver PWM input
+# Mesa GPIO: TB2-07 (GPIO 2) - Connect to motor driver DIR input
+
+# Configure PWM generator
+setp hm2_7i96s.0.pwmgen.00.output-type 1     # PWM on pin, DIR on pin+1
+setp hm2_7i96s.0.pwmgen.00.scale 100.0       # Scale to percentage
+setp hm2_7i96s.0.pwmgen.pwm_frequency 25000  # 25kHz PWM frequency
+
+# PID parameters for smooth fader movement
+setp fader-pid.Pgain 0.5
+setp fader-pid.Igain 0.1
+setp fader-pid.Dgain 0.01
+setp fader-pid.maxoutput 100.0
+setp fader-pid.deadband 0.5      # 0.5% deadband to prevent jitter
+
+# Get setpoint from LinuxCNC feed override
+net feed-override-cmd halui.feed-override.value => fader-pid.command
+
+# Feedback from physical fader position
+net fader-position-fb => fader-pid.feedback
+
+# Enable PID when not in manual mode
+net fader-pid-enable fader-pid.enable
+
+# PID output to motor PWM
+net fader-motor-output fader-pid.output => hm2_7i96s.0.pwmgen.00.value
+
+# ============================================================================
+# MANUAL FADER OVERRIDE DETECTION
+# ============================================================================
+# When user moves fader manually, we want to:
+# 1. Disable motor (PID off)
+# 2. Update LinuxCNC feed override from physical position
+#
+# Detection: If error between setpoint and feedback is large, user is moving it
+
+# Create a "manual mode" signal based on error size
+# This is simplified - in practice you'd use a comp component for this logic
+# For now, we'll assume manual control if debounced input is active
+
+# Manual override input (optional - could be automatic based on force sensor)
+# For now, we always update LinuxCNC from fader when error is small
+net fader-position-fb => halui.feed-override.direct-value
+
+# Set PID enable based on estop state (disabled for now - always track)
+sets fader-pid-enable true
+
+# ============================================================================
+# FEED OVERRIDE SCALE TO LINUXCNC
+# ============================================================================
+# The fader position (0-200%) controls the feed override
+# halui.feed-override.scale expects 0.0-2.0 (0-200%)
+
+# Scale output for LinuxCNC (percentage to scale)
+setp fader-scale-out.gain 0.01    # Convert 0-200% to 0.0-2.0
+setp fader-scale-out.offset 0.0
+
+net fader-position-fb => fader-scale-out.in
+net feed-override-scale fader-scale-out.out => halui.feed-override.scale
+
+# ============================================================================
+# STATUS LEDS (Optional)
+# ============================================================================
+# Mesa GPIO outputs for status indication
+# TB2-08 (GPIO 3) - E-stop active LED (red)
+# TB2-09 (GPIO 4) - System ready LED (green)
+
+setp hm2_7i96s.0.gpio.003.is_output true
+setp hm2_7i96s.0.gpio.004.is_output true
+
+net estop-fault => hm2_7i96s.0.gpio.003.out
+net estop-user-enable => hm2_7i96s.0.gpio.004.out
+
+# ============================================================================
+# STARTUP AND SYNC
+# ============================================================================
+# On startup, the physical fader position might not match LinuxCNC value
+# The PID will automatically move the motor to sync with LinuxCNC setpoint
+# Adjust PID gains if movement is too fast or too slow
+
+# ============================================================================
+# NOTES
+# ============================================================================
+# 1. Adjust fader-scale-in.gain based on your actual potentiometer voltage
+#    If using 5V supply: gain = 40.0 (5V → 200%)
+#    If using 10V supply: gain = 20.0 (10V → 200%)
+#
+# 2. PID tuning:
+#    - Increase Pgain for faster response
+#    - Increase Dgain if oscillating
+#    - Increase deadband if motor jitters when stationary
+#
+# 3. Manual detection:
+#    - Current implementation always allows manual override
+#    - For better control, add force sensor or current sensing
+#
+# 4. Motor polarity:
+#    - If fader moves wrong direction, invert PWM output or swap motor wires
+#
+# 5. IP Address:
+#    - Change board_ip to match your Mesa card's IP address
+#    - Default is usually 192.168.1.121
+# ============================================================================
