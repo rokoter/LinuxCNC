@@ -1,6 +1,8 @@
 # IHSV57/60-EC EtherCAT LinuxCNC Configuration
 
 Working LinuxCNC configuration for JMC IHSV57/60-EC integrated servo motors with EtherCAT communication.
+Based on rodw's work, many thanks! And some credits to Claude for guiding me through INI/HAL/XML ;-)
+See: https://forum.linuxcnc.org/ethercat/45336-ethercat-installation-from-repositories-how-to-step-by-step
 
 ## Hardware Setup
 
