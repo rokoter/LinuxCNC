@@ -1,0 +1,71 @@
+<masters>
+  <master idx="0" appTimePeriod="1000000" refClockSyncCycles="1">
+    <!-- IHSV57/60-EC Motor -->
+    <slave idx="0" type="generic" vid="66668888" pid="2019a301" configPdos="true">
+      <dcConf assignActivate="300" sync0Cycle="*1" sync0Shift="0"/>
+      
+      <!-- RxPDO - Output naar motor (SM2) -->
+      <syncManager idx="2" dir="out">
+        <pdo idx="1600">
+          <pdoEntry idx="6040" subIdx="00" bitLen="16" halPin="cia-controlword" halType="u32"/>
+          <pdoEntry idx="6060" subIdx="00" bitLen="8" halPin="opmode" halType="s32"/>
+          <pdoEntry idx="607A" subIdx="00" bitLen="32" halPin="target-position" halType="s32"/>
+          <pdoEntry idx="60B8" subIdx="00" bitLen="16" halPin="touch-probe-function" halType="u32"/>
+          <pdoEntry idx="60FE" subIdx="01" bitLen="32" halPin="physical-outputs" halType="u32"/>
+          <pdoEntry idx="60FE" subIdx="02" bitLen="32" halPin="bit-mask" halType="u32"/>
+        </pdo>
+      </syncManager>
+      
+      <!-- TxPDO - Input van motor (SM3) -->
+      <syncManager idx="3" dir="in">
+        <pdo idx="1a00">
+          <pdoEntry idx="603F" subIdx="00" bitLen="16" halPin="cia-faultcode" halType="u32"/>
+          <pdoEntry idx="6041" subIdx="00" bitLen="16" halPin="cia-statusword" halType="u32"/>
+          <pdoEntry idx="6061" subIdx="00" bitLen="8" halPin="opmode-display" halType="s32"/>
+          <pdoEntry idx="6064" subIdx="00" bitLen="32" halPin="actual-position" halType="s32"/>
+          <pdoEntry idx="60B9" subIdx="00" bitLen="16" halPin="touch-probe-status" halType="u32"/>
+          <pdoEntry idx="60BA" subIdx="00" bitLen="32" halPin="touch-probe-pos1-pos" halType="s32"/>
+          <pdoEntry idx="60BB" subIdx="00" bitLen="32" halPin="touch-probe-pos1-neg" halType="s32"/>
+          <pdoEntry idx="60BC" subIdx="00" bitLen="32" halPin="touch-probe-pos2-pos" halType="s32"/>
+          <pdoEntry idx="60BD" subIdx="00" bitLen="32" halPin="touch-probe-pos2-neg" halType="s32"/>
+          
+          <!-- Digital inputs - ALLE 32 bits apart voor debug -->
+          <pdoEntry idx="60FD" subIdx="00" bitLen="32" halType="complex">
+            <complexEntry bitLen="1" halPin="in-bit-00" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-01" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-02" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-03" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-04" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-05" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-06" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-07" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-08" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-09" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-10" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-11" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-12" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-13" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-14" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-15" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-16" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-17" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-18" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-19" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-20" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-21" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-22" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-23" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-24" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-25" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-26" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-27" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-28" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-29" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-30" halType="bit"/>
+            <complexEntry bitLen="1" halPin="in-bit-31" halType="bit"/>
+          </pdoEntry>
+        </pdo>
+      </syncManager>
+    </slave>
+  </master>
+</masters>

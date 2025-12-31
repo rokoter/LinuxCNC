@@ -1,0 +1,10 @@
+G90 (absolute mode)
+G21 (mm)
+G0 X0 (start)
+O100 repeat [10]
+  G1 X80 F6000
+  G4 P0.5
+  G1 X0 F6000
+  G4 P0.1
+O100 endrepeat
+M2

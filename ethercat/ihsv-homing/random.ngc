@@ -1,0 +1,20 @@
+G90 G21
+G0 X0
+
+O100 repeat [4]
+  G1 X20 F600    (heel langzaam)
+  G1 X5 F6000    (BAM snel!)
+  G1 X40 F1200   (langzaam)
+  G1 X15 F5400   (snel)
+  G1 X60 F900    (heel langzaam)
+  G1 X25 F6000   (maximaal!)
+  G1 X80 F2400   (medium)
+  G1 X35 F4800   (vrij snel)
+  G1 X70 F600    (traag)
+  G1 X10 F6000   (razendsnel)
+  G1 X50 F3000   (medium)
+  G1 X0 F1800    (rustig naar huis)
+  G4 P0.2
+O100 endrepeat
+
+M2

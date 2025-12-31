@@ -1,0 +1,12 @@
+G90 G21
+G0 X0
+
+#<step> = 10
+O100 while [#<step> LE 80]
+  G1 X#<step> F6000
+  G1 X0 F6000
+  G4 P0.1
+  #<step> = [#<step> + 10]
+O100 endwhile
+
+M2
