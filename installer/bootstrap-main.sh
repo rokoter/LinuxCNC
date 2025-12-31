@@ -21,7 +21,7 @@
 
 # SCRIPT METADATA - AUTO-UPDATED BY BUILD PROCESS
 # This helps bootstrap detect which branch it came from
-SCRIPT_BRANCH_HINT="feature-installer"
+SCRIPT_BRANCH_HINT="main"
 
 set -euo pipefail
 
