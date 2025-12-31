@@ -7,11 +7,16 @@ High-quality control panel voor LinuxCNC met motorized feed override fader.
 ### Components
 - **Mesa 7i96S** - Ethernet FPGA I/O kaart
 - **ALPS RSA0N11M9A0J** - 100mm motorized fader (hoogwaardige mixing console fader)
+  - [Amazon link](https://www.amazon.nl/dp/B0FK222BQS)
 - **Emergency stop button** - Met NC (Normally Closed) contact, vergrendeling
-- **Start pulse button** - NO (Normally Open) momentary contact
-  - *Optioneel:* **Heschen 16mm** momentary met ingebouwde 12V LED (wit/rood/blauw/groen/geel)
+- **RGB illuminated button** - 19mm, 12-24V, momentary NO contact
+  - [Amazon link](https://www.amazon.nl/dp/B097MQP582)
+  - Gebruikt voor machine enable/disable
+  - State indication via RGB LED (rood/groen)
+- **Program start button** (toekomstig) - Aparte knop, mogelijk achter klepje voor veiligheid
 - **24V power supply** - Voor Mesa kaart en motor driver
 - **Motor driver** (optioneel) - Als fader motor meer stroom nodig heeft dan Mesa kan leveren
+- **Resistors** - 3x 1.5kΩ - 2.2kΩ voor RGB LED stroombeperking
 
 ### ALPS RSA0N11M9 Specificaties
 - **Stroke**: 100mm
@@ -31,18 +36,19 @@ TB2 - Digital I/O (24V logic)
 Pin   | Signal              | Connectie
 ------+---------------------+-------------------------
 01    | GPIO 0 (Input)      | E-stop button (NC contact)
-02    | GPIO 1 (Input)      | Start button (NO contact)
+02    | GPIO 1 (Input)      | Enable/Start button (NO contact)
 03    | GND                 | Button common
 04    | +24V                | Pull-up voor inputs
-05    | -                   | -
-06    | PWM 0               | Fader motor PWM
-07    | PWM 0 DIR           | Fader motor direction
-08    | GPIO 3 (Output)     | E-stop LED (rood)
-09    | GPIO 4 (Output)     | Ready LED (groen)
-10    | GPIO 5 (Output)     | Start button LED (optioneel)*
-11    | GND                 | LED common
+05    | GPIO 5 (Output)     | RGB LED - RED channel*
+06    | GPIO 6 (Output)     | RGB LED - GREEN channel*
+07    | GPIO 7 (Output)     | RGB LED - BLUE channel* (reserve)
+08    | PWM 0               | Fader motor PWM
+09    | PWM 0 DIR           | Fader motor direction
+10    | GPIO 3 (Output)     | E-stop status LED (optioneel)
+11    | GPIO 4 (Output)     | Ready status LED (optioneel)
+12    | GND                 | LED common / RGB common negative
 
-* Only used if Heschen button with LED is installed
+* RGB LED via 1.5kΩ - 2.2kΩ current limiting resistors
 
 TB3 - Analog Input
 ═══════════════════════════════════════════════════
@@ -103,50 +109,62 @@ E-stop button (met vergrendeling):
 Let op: NC contact sluit circuit in normale toestand!
 ```
 
-### 2. Start Button
-```
-Start button (momentary):
-  One side      → Mesa TB2-02 (GPIO 1)
-  Other side    → Mesa TB2-04 (+24V)
-  
-Pull-down via Mesa interne resistor
-```
+### 2. RGB Enable Button
 
-#### 2b. Start Button with LED (Optional - Heschen 16mm)
+**Hardware:** 19mm RGB LED illuminated button (12-24V)
+- **Amazon:** https://www.amazon.nl/dp/B097MQP582
 
-Als je de **Heschen 16mm drukknop met LED** gebruikt:
+**Functie:**
+- Toggle machine enable/disable
+- RGB LED toont machine status
+- **Program start** wordt een aparte knop (toekomstige uitbreiding)
 
+**RGB LED bekabeling (Common Negative design):**
 ```
-Heschen 16mm momentary button pinout:
-  NO contact    → Mesa TB2-02 (GPIO 1)
-  COM contact   → Mesa TB2-04 (+24V)
-  NC contact    → Niet gebruikt
-  
-LED connections - OPTIE A (met weerstand):
-  LED+          → Mesa TB2-10 (GPIO 5)
-  LED-          → 1.2kΩ resistor → GND
-  
-LED connections - OPTIE B (met transistor, aanbevolen):
-  Mesa TB2-10   → 1kΩ → Base (2N2222 NPN)
-  Collector     → LED+
-  Emitter       → GND
-  LED-          → 12V supply GND
+19mm RGB Button LED pinout:
+  Zwart (negative-)   → Mesa TB2-12 (GND) - common cathode
+  Rood (positive+)    → 2.2kΩ resistor → Mesa TB2-05 (GPIO 5)
+  Groen (positive+)   → 2.2kΩ resistor → Mesa TB2-06 (GPIO 6)
+  Blauw (positive+)   → 2.2kΩ resistor → Mesa TB2-07 (GPIO 7)
+
+Switch contacts:
+  Contact 1           → Mesa TB2-02 (GPIO 1)
+  Contact 2           → Mesa TB2-04 (+24V)
 ```
 
-**LED gedrag:**
-- E-stop actief: LED UIT
-- Standby (geen e-stop, machine idle): LED KNIPPERT (1x per 2 sec)
-- Machine running: LED brandt CONTINU
+**Resistor selectie:**
+- Start met **2.2kΩ** voor maximale LED levensduur
+- Te donker? → Verlaag naar 1.5kΩ of 1kΩ
+- **NOOIT onder 680Ω** (risico op LED schade)
 
-**Activeren in HAL:**
-Open `control-panel.hal` en verwijder de comment tekens (`#`) bij de sectie:
-```hal
-# ============================================================================
-# START BUTTON LED (OPTIONAL)
-# ============================================================================
+**LED State Indication:**
+
+| Machine Status | E-stop | Enabled | Running | LED Kleur | LED Gedrag |
+|----------------|--------|---------|---------|-----------|------------|
+| Noodstop | ✓ | - | - | 🔴 **ROOD** | Continu |
+| Uitgeschakeld | ✗ | ✗ | ✗ | 🔴 **ROOD** | Knippert 1Hz |
+| Klaar (idle) | ✗ | ✓ | ✗ | 🟢 **GROEN** | Continu |
+| Programma actief | ✗ | ✓ | ✓ | 🟢 **GROEN** | Knippert 0.5Hz |
+
+**Gebruik:**
+1. E-stop ontgrendelen → LED gaat van rood (continu) naar rood (knipperend)
+2. Druk RGB button → Machine enabled → LED wordt groen (continu)
+3. Start programma (via aparte knop, toekomstig) → LED knippert groen (actieve feedback)
+
+**Bekabelingsschema:**
 ```
-
-Alle regels onder deze sectie die met `#` beginnen moeten actief gemaakt worden.
+        Mesa 7i96S
+        ┌─────────────┐
+RGB     │             │
+Button  │  TB2-05 ────┼──── 2.2kΩ ──── RED LED+
+  │     │  TB2-06 ────┼──── 2.2kΩ ──── GREEN LED+
+  │     │  TB2-07 ────┼──── 2.2kΩ ──── BLUE LED+
+  │     │  TB2-12 ────┼──── BLACK (common -)
+  │     │             │
+  └─────┼─ TB2-02 ────┼──── Switch contact 1
+        │  TB2-04 ────┼──── Switch contact 2 (+24V)
+        └─────────────┘
+```
 
 ### 3. ALPS Fader - Potentiometer
 ```
@@ -264,31 +282,53 @@ Start LinuxCNC en test:
 
 ## Startup Routine
 
-Bij het opstarten van LinuxCNC:
+Bij het opstarten van LinuxCNC met control panel:
 
-1. **E-stop check**: Rode LED moet branden als e-stop ingedrukt
-2. **Fader sync**: Motor beweegt fader naar huidige LinuxCNC waarde (typisch 100%)
+1. **Power on**: RGB button toont 🔴 **ROOD continu** (e-stop actief)
+2. **E-stop ontgrendelen**: RGB button gaat naar 🔴 **ROOD knipperend** (1 Hz)
+3. **Druk RGB button**: Machine wordt enabled → 🟢 **GROEN continu**
+4. **Fader sync**: Motor beweegt fader naar huidige LinuxCNC waarde (typisch 100%)
    - Duurt 2-5 seconden
    - Smooth beweging door PID
-3. **Ready**: Groene LED gaat aan
-4. **Manual override**: Je kunt nu handmatig fader bewegen om feed rate te wijzigen
+5. **Ready**: RGB button blijft 🟢 **GROEN continu** - klaar om programma te starten
+6. **Start programma** (via aparte knop, toekomstig): LED wordt 🟢 **GROEN knipperend** (actieve feedback)
+7. **Manual fader control**: Je kunt altijd handmatig fader bewegen om feed rate te wijzigen
 
 ## Gebruik
 
-### Start Button LED (indien geïnstalleerd)
+### RGB Enable Button
 
-De Heschen start button heeft intelligent LED gedrag:
+De RGB button heeft intelligent state-based gedrag:
 
-| Machine Status | E-stop | Program Running | LED Gedrag |
-|----------------|--------|-----------------|------------|
-| Noodstop actief | JA | - | **UIT** |
-| Standby | NEE | NEE | **KNIPPERT** (1x / 2 sec) |
-| Actief | NEE | JA | **AAN** (continu) |
+**Visuele Feedback:**
 
-**Gebruik:**
-- LED uit? → Check e-stop, ontgrendel en druk start
-- LED knippert? → Machine klaar, druk start om programma te beginnen
-- LED brandt? → Machine draait programma
+| LED Display | Betekenis | Actie |
+|-------------|-----------|-------|
+| 🔴 Rood (continu) | E-stop actief | Ontgrendel e-stop |
+| 🔴 Rood (knippert) | Machine uit, e-stop vrij | Druk om machine in te schakelen |
+| 🟢 Groen (continu) | Machine aan, klaar | Gereed voor programma (aparte start knop) |
+| 🟢 Groen (knippert) | Programma draait | Actieve feedback tijdens bewerking |
+
+**Typische workflow:**
+1. Power on → 🔴 Rood continu (e-stop actief)
+2. Ontgrendel e-stop → 🔴 Rood knippert (druk om te enablen)
+3. Druk RGB button → 🟢 Groen continu (machine enabled)
+4. Start programma via aparte knop (toekomstig) → 🟢 Groen knippert (bezig)
+
+**Knipperfrequentie aanpassen:**
+```bash
+# Rood (disabled state) - standaard 1 Hz (1x per seconde)
+halcmd setp red-blink.frequency 1.0
+
+# Groen (running state) - standaard 0.5 Hz (1x per 2 seconden)
+halcmd setp green-blink.frequency 0.5
+```
+
+**Toekomstige uitbreiding:**
+Blauwe LED is gereserveerd voor bijvoorbeeld:
+- Cycle start indicator (knippert bij wachten op start)
+- Paused state (continu blauw)
+- Warnings (snel knipperend)
 
 ### Feed Override Aanpassen
 
@@ -303,11 +343,19 @@ De Heschen start button heeft intelligent LED gedrag:
 
 ### Emergency Stop
 
-1. Druk e-stop in → alle beweging stopt
-2. Rode LED brandt
-3. Ontgrendel e-stop
-4. Druk **Start** button → systeem reset
-5. Groene LED brandt → ready
+**Activeren:**
+1. Druk e-stop in → alle beweging stopt onmiddellijk
+2. RGB button wordt 🔴 **ROOD continu**
+3. Machine is volledig uitgeschakeld
+
+**Reset:**
+1. Los probleem op (indien van toepassing)
+2. Ontgrendel e-stop door te draaien
+3. RGB button gaat naar 🔴 **ROOD knipperend** (machine disabled maar veilig)
+4. Druk RGB button → Machine enabled → 🟢 **GROEN continu** (ready)
+5. Start programma via aparte knop (toekomstige feature)
+
+**Let op:** E-stop reset betekent NIET dat machine automatisch enabled is! Je moet expliciet de RGB button indrukken om de machine weer in te schakelen. Dit is een veiligheidsfunctie.
 
 ## Troubleshooting
 
@@ -394,69 +442,72 @@ halcmd show pin hm2_7i96s.0.gpio.000.*
 setp hm2_7i96s.0.gpio.000.invert_input true
 ```
 
-### Start button doet niets
+### RGB Enable/Start button werkt niet
 
-**Check:**
+**Button test:**
 ```bash
-halcmd show sig start-button
-```
-
-**Debug:**
-```bash
-# Monitor input
+# Monitor button input
 halcmd watch pin hm2_7i96s.0.gpio.001.in
 
 # Druk button → waarde moet veranderen
 ```
 
-### Start button LED werkt niet (optioneel feature)
-
-**Check of LED sectie geactiveerd is:**
+**LED test:**
 ```bash
-halcmd show pin led-blink.square
-# Als "NOT FOUND" → LED sectie is nog uitgecomment
+# Forceer kleuren individueel aan (test outputs)
+halcmd setp hm2_7i96s.0.gpio.005.out true  # RED should light up
+halcmd setp hm2_7i96s.0.gpio.006.out true  # GREEN should light up
+halcmd setp hm2_7i96s.0.gpio.007.out true  # BLUE should light up
+
+# Als geen enkele LED brandt: check bekabeling en resistors
 ```
 
-**Activeren:**
-1. Open `control-panel.hal`
-2. Zoek sectie `# START BUTTON LED (OPTIONAL)`
-3. Verwijder `#` voor alle regels onder deze sectie
-4. Herstart LinuxCNC
-
-**LED gedrag testen:**
+**State machine test:**
 ```bash
-# Forceer LED aan (test output)
-halcmd setp hm2_7i96s.0.gpio.005.out true
+# Check state signals
+halcmd show sig rgb-sel0
+halcmd show sig rgb-sel1
+halcmd show sig machine-on-stable
+halcmd show sig program-is-running
 
-# LED moet nu branden - zo niet: check bekabeling
+# Monitor live state changes
+halcmd watch sig red-led-output
+halcmd watch sig green-led-output
 ```
 
-**Knipperfrequentie aanpassen:**
-```bash
-# Langzaam (elke 4 sec)
-halcmd setp led-blink.frequency 0.25
+**Troubleshooting:**
 
-# Snel (elke seconde)
-halcmd setp led-blink.frequency 1.0
+| Probleem | Oorzaak | Oplossing |
+|----------|---------|-----------|
+| Alle LEDs te fel | Resistor te laag | Verhoog naar 2.2kΩ of hoger |
+| Alle LEDs te zwak | Resistor te hoog | Verlaag naar 1.5kΩ of 1kΩ |
+| Eén kleur werkt niet | Kapotte LED of losse draad | Check verbinding en resistor |
+| LED blijft rood | Machine niet enabled | Check `halui.machine.is-on` |
+| LED knippert niet | Siggen niet geladen | Check HAL file - siggen components |
+| Verkeerde staat | State logic fout | Check sel0/sel1 signals |
+
+**Weerstand calculatie:**
+```
+Mesa output: 24V
+LED forward voltage: ~2V (red), ~3V (green/blue)
+Gewenste stroom: 10mA
+
+R = (24V - Vf) / I
+R = (24V - 2V) / 0.010A = 2.2kΩ  (voor rood)
+R = (24V - 3V) / 0.010A = 2.1kΩ  (voor groen/blauw)
+
+Start met 2.2kΩ voor alle kleuren (veilig)
 ```
 
-**Weerstand check (Optie A):**
-- Heschen LED is 12V, Mesa output is 24V
-- Zonder weerstand: LED gaat kapot!
-- Gebruik 1.2kΩ - 1.5kΩ resistor
-- LED te fel? Verhoog naar 2.2kΩ
-- LED te zwak? Verlaag naar 820Ω (maar niet lager dan 680Ω!)
+**Advanced: Custom states met BLUE channel:**
 
-**Transistor circuit (Optie B - aanbevolen):**
-```
-Mesa GPIO 5 (24V) → 1kΩ → Base (2N2222)
-                           Collector → LED+ (12V)
-                           Emitter → GND
-LED- → 12V GND
+Blauwe LED is momenteel reserve. Gebruik maken:
+```hal
+# Bijvoorbeeld: BLUE voor paused state
+net program-is-paused halui.program.is-paused => hm2_7i96s.0.gpio.007.out
 
-Test transistor:
-- Meet voltage Base-Emitter: ~0.7V wanneer aan
-- Meet voltage Collector-Emitter: ~0.2V wanneer aan
+# Of: BLUE knippert bij warnings
+# Voeg mux4.2 toe voor BLUE channel in HAL
 ```
 
 ### Mesa kaart niet gevonden
@@ -531,10 +582,12 @@ Makkelijk toe te voegen:
 |-----------|------|-------|
 | Mesa 7i96S | Ethernet, 32 I/O | 3x analog in, 5x PWM |
 | ALPS Fader | 100mm, 10kΩ | Professional grade |
+| RGB Button | 19mm, 12-24V | State indication |
 | Update rate | 1kHz (1ms) | Configurable |
 | PWM freq | 25kHz | Adjustable |
 | Voltage | 24VDC | Mesa + peripherals |
 | Fader range | 0-200% | Feed override |
+| RGB blink | 0.5-1 Hz | State dependent |
 
 ## Safety
 

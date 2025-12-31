@@ -22,7 +22,7 @@ loadrt threads name1=servo-thread period1=1000000  # 1ms servo thread
 loadrt pid names=fader-pid
 loadrt scale names=fader-scale-in,fader-scale-out
 loadrt estop_latch
-loadrt debounce cfg=3  # 3 inputs to debounce
+loadrt debounce cfg=2  # 2 inputs to debounce (estop, enable/start button)
 
 # ----------------------------------------------------------------------------
 # Add functions to servo thread
@@ -42,7 +42,7 @@ addf hm2_7i96s.0.write        servo-thread
 setp hm2_7i96s.0.gpio.000.is_output false
 setp hm2_7i96s.0.gpio.000.invert_output false
 
-# Debounce settings (3 inputs: estop, start, manual-fader-detect)
+# Debounce settings (2 inputs: estop, enable/start button)
 setp debounce.0.delay 10  # 10ms debounce
 
 # Connect raw estop signal to debouncer
@@ -55,88 +55,172 @@ net estop-reset iocontrol.0.user-request-enable => estop-latch.0.reset
 net estop-fault estop-latch.0.fault-out
 
 # ============================================================================
-# START PULSE BUTTON
+# MACHINE ENABLE BUTTON WITH RGB LED
 # ============================================================================
-# Mesa pin: TB2-02 (GPIO 1) - Connect NO contact of start button
+# Hardware: 19mm RGB LED illuminated button (12-24V)
+# Amazon: https://www.amazon.nl/dp/B097MQP582
+#
+# Button behavior:
+#   Toggle machine enable/disable (halui.machine.on / halui.machine.off)
+#   NOTE: Program start will be separate button (future addition)
+#
+# RGB LED State Indication:
+#   E-stop active             → RED solid
+#   E-stop cleared, disabled  → RED blinking (press to enable)
+#   Machine enabled, idle     → GREEN solid
+#   Program running           → GREEN blinking (active feedback)
+# ============================================================================
+
+# Button input
 setp hm2_7i96s.0.gpio.001.is_output false
+net machine-enable-button-raw hm2_7i96s.0.gpio.001.in => debounce.0.1.in
+net machine-enable-button debounce.0.1.out
 
-net start-button-raw hm2_7i96s.0.gpio.001.in => debounce.0.1.in
-net start-button debounce.0.1.out => halui.program.run
+# RGB LED outputs (Common Negative design)
+# Mesa outputs are 24V, LED is 12-24V compatible
+# Use 1.5kΩ - 2.2kΩ current limiting resistors for LED longevity
+setp hm2_7i96s.0.gpio.005.is_output true  # RED
+setp hm2_7i96s.0.gpio.006.is_output true  # GREEN  
+setp hm2_7i96s.0.gpio.007.is_output true  # BLUE (reserve)
+
+# ----------------------------------------------------------------------------
+# Load components for RGB state machine
+# ----------------------------------------------------------------------------
+loadrt toggle count=1                     # Toggle machine enable/disable
+loadrt timedelay count=1                  # Debounce machine-on state
+loadrt siggen names=red-blink,green-blink # Blink generators
+loadrt mux4 count=2                       # 4-way multiplexers for RGB control
+loadrt and2 count=1                       # Logic gates
+loadrt or2 count=1
+loadrt not count=1
+
+addf toggle.0 servo-thread
+addf timedelay.0 servo-thread
+addf red-blink.update servo-thread
+addf green-blink.update servo-thread
+addf mux4.0 servo-thread      # RED channel mux
+addf mux4.1 servo-thread      # GREEN channel mux
+addf and2.0 servo-thread
+addf or2.0 servo-thread
+addf not.0 servo-thread
+
+# ----------------------------------------------------------------------------
+# Blink generators
+# ----------------------------------------------------------------------------
+setp red-blink.frequency 1.0      # 1 Hz for disabled state
+setp red-blink.amplitude 1.0
+setp red-blink.offset 0.0
+
+setp green-blink.frequency 0.5    # 0.5 Hz for running state (active feedback)
+setp green-blink.amplitude 1.0
+setp green-blink.offset 0.0
+
+# ----------------------------------------------------------------------------
+# Machine state detection
+# ----------------------------------------------------------------------------
+# Delay to prevent flicker during state transitions
+setp timedelay.0.on-delay 0.1
+setp timedelay.0.off-delay 0.2
+
+# Get machine states from LinuxCNC
+net machine-is-on halui.machine.is-on => timedelay.0.in
+net machine-on-stable timedelay.0.out
+net program-is-running halui.program.is-running
+net estop-is-active estop-latch.0.fault-out
+
+# Inverted signals
+net estop-is-active => not.0.in
+net estop-not-active not.0.out
+
+# ----------------------------------------------------------------------------
+# Button logic: Simple machine enable/disable toggle
+# ----------------------------------------------------------------------------
+# Button toggles between halui.machine.on and halui.machine.off
+# Safe: separate button will be used for program start
+
+net machine-enable-button => toggle.0.in
+net machine-on-stable => toggle.0.is-on
+
+# Output to machine control
+net machine-toggle-out toggle.0.out => halui.machine.on
+
+# ----------------------------------------------------------------------------
+# RGB LED State Machine
+# ----------------------------------------------------------------------------
+# State encoding for mux4 (sel0, sel1):
+#   00 (0): E-stop active        → RED solid
+#   01 (1): Machine disabled     → RED blinking
+#   10 (2): Machine enabled      → GREEN solid
+#   11 (3): Program running      → GREEN blinking
+
+# Generate state selector bits
+# sel0 = machine-on OR program-running
+net machine-on-stable => or2.0.in0
+net program-is-running => or2.0.in1
+net rgb-sel0 or2.0.out
+
+# sel1 = program-running AND estop-not-active
+net program-is-running => and2.0.in0
+net estop-not-active => and2.0.in1
+net rgb-sel1 and2.0.out
+
+# ----------------------------------------------------------------------------
+# RED LED Channel (mux4.0)
+# ----------------------------------------------------------------------------
+setp mux4.0.in0 1              # State 0: E-stop → RED solid (ON)
+net red-blink-sig red-blink.square => mux4.0.in1  # State 1: Disabled → RED blink
+setp mux4.0.in2 0              # State 2: Enabled → RED off
+setp mux4.0.in3 0              # State 3: Running → RED off
+
+net rgb-sel0 => mux4.0.sel0
+net rgb-sel1 => mux4.0.sel1
+net red-led-output mux4.0.out => hm2_7i96s.0.gpio.005.out
+
+# ----------------------------------------------------------------------------
+# GREEN LED Channel (mux4.1)
+# ----------------------------------------------------------------------------
+setp mux4.1.in0 0              # State 0: E-stop → GREEN off
+setp mux4.1.in1 0              # State 1: Disabled → GREEN off
+setp mux4.1.in2 1              # State 2: Enabled → GREEN solid (ON)
+net green-blink-sig green-blink.square => mux4.1.in3  # State 3: Running → GREEN blink
+
+net rgb-sel0 => mux4.1.sel0
+net rgb-sel1 => mux4.1.sel1
+net green-led-output mux4.1.out => hm2_7i96s.0.gpio.006.out
+
+# BLUE channel reserved for future use (e.g., paused state, warnings, cycle start indicator)
+setp hm2_7i96s.0.gpio.007.out false
 
 # ============================================================================
-# START BUTTON LED (OPTIONAL)
+# RGB LED WIRING
 # ============================================================================
-# If using Heschen 16mm button with integrated LED (12V)
-# Behavior:
-#   - E-stop active: LED OFF
-#   - Standby (no e-stop, not running): LED BLINKS
-#   - Machine running: LED ON (continuous)
+# 19mm RGB Button pinout (Common Negative):
+#   Black wire (negative-)  → GND (common cathode)
+#   Red wire (positive+)    → Mesa TB2-XX (GPIO 5) via 1.5kΩ - 2.2kΩ resistor
+#   Green wire (positive+)  → Mesa TB2-XX (GPIO 6) via 1.5kΩ - 2.2kΩ resistor
+#   Blue wire (positive+)   → Mesa TB2-XX (GPIO 7) via 1.5kΩ - 2.2kΩ resistor
 #
-# To enable: uncomment the following section
+# Switch contacts:
+#   Contact 1               → Mesa TB2-02 (GPIO 1)
+#   Contact 2               → Mesa TB2-04 (+24V)
+#
+# Button function:
+#   Press to toggle machine enable/disable
+#   Separate button will be used for program start (future addition)
+#
+# Resistor selection:
+#   Start with 2.2kΩ for maximum LED lifespan
+#   If too dim, reduce to 1.5kΩ or 1kΩ
+#   Do NOT go below 680Ω (risk of LED damage)
+#
+# Blink frequency adjustment:
+#   Red (disabled state):   setp red-blink.frequency 1.0    (1 Hz = 1 blink/sec)
+#   Green (running state):  setp green-blink.frequency 0.5  (0.5 Hz = 1 blink/2sec)
+#
+# Future expansion:
+#   BLUE channel available for program start indicator, pause state, or warnings
+#   Could add separate program start button on GPIO 2 (TB2-XX)
 # ============================================================================
-
-## Load components for LED blink control
-#loadrt siggen names=led-blink
-#loadrt mux2 names=led-mux
-#loadrt timedelay names=machine-running-delay
-#loadrt and2 names=led-gate
-#
-#addf led-blink.update servo-thread
-#addf led-mux servo-thread
-#addf machine-running-delay servo-thread
-#addf led-gate servo-thread
-#
-## Configure GPIO for LED output
-## Mesa pin: TB2-10 (GPIO 5)
-#setp hm2_7i96s.0.gpio.005.is_output true
-#
-## Blink generator: 0.5 Hz = blink every 2 seconds (1s on, 1s off)
-#setp led-blink.frequency 0.5
-#setp led-blink.amplitude 1.0
-#setp led-blink.offset 0.0
-#
-## Detect if machine is running
-## Small delay to prevent flicker during start/stop
-#setp machine-running-delay.on-delay 0.2
-#setp machine-running-delay.off-delay 0.5
-#net program-running halui.program.is-running => machine-running-delay.in
-#net machine-is-running machine-running-delay.out
-#
-## LED multiplexer:
-## in0 = blink signal (standby mode)
-## in1 = continuous ON (running mode)
-## sel = switch between modes based on machine state
-#net led-blink-signal led-blink.square => led-mux.in0
-#sets led-mux.in1 true
-#net machine-is-running => led-mux.sel
-#net led-raw-output led-mux.out
-#
-## Only enable LED if no e-stop (gate with e-stop status)
-#net led-raw-output => led-gate.in0
-#net estop-user-enable => led-gate.in1
-#net start-button-led led-gate.out => hm2_7i96s.0.gpio.005.out
-#
-## LED Wiring Notes:
-## ==================
-## Heschen button LED is 12V, Mesa GPIO is 24V
-## 
-## Option A: Use current limiting resistor
-##   LED+ → Mesa TB2-10 (GPIO 5)
-##   LED- → 1.2kΩ resistor → GND
-##   Resistor value: (24V - 12V) / 10mA = 1.2kΩ
-##
-## Option B: Use transistor with separate 12V supply (recommended)
-##   Mesa TB2-10 → 1kΩ → Base (NPN transistor like 2N2222)
-##   Collector → LED+
-##   Emitter → GND
-##   LED- → 12V supply GND
-##
-## Adjust blink frequency:
-##   Slow: setp led-blink.frequency 0.25  (blink every 4 sec)
-##   Fast: setp led-blink.frequency 1.0   (blink every 1 sec)
-##   Default: 0.5 Hz (every 2 sec)
-##
-## ============================================================================
 
 # ============================================================================
 # MOTORIZED FADER - Position Feedback
