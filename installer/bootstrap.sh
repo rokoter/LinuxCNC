@@ -171,4 +171,13 @@ echo ""
 
 # Run the actual installer
 cd "$INSTALLER_DIR"
-exec bash "$INSTALLER_SCRIPT" "$@"
+
+# Redirect stdin from /dev/tty so interactive prompts work
+# Even when bootstrap was piped from curl
+if [ -t 0 ]; then
+    # stdin is already a terminal
+    exec bash "$INSTALLER_SCRIPT" "$@"
+else
+    # stdin is NOT a terminal (piped from curl), redirect from /dev/tty
+    exec bash "$INSTALLER_SCRIPT" "$@" < /dev/tty
+fi
