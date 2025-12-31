@@ -4,11 +4,17 @@
 # 
 # One-command installation from fresh LinuxCNC install
 #
-# Usage:
+# Usage (feature-installer branch - CURRENT):
+#   curl -sSL https://raw.githubusercontent.com/rokoter/LinuxCNC/feature-installer/installer/bootstrap.sh | sudo bash
+#
+# Usage (main branch - after merge):
 #   curl -sSL https://raw.githubusercontent.com/rokoter/LinuxCNC/main/installer/bootstrap.sh | sudo bash
 #
+# Force specific branch (optional):
+#   BOOTSTRAP_BRANCH=develop curl -sSL https://raw.../bootstrap.sh | sudo -E bash
+#
 # Or download and run:
-#   wget https://raw.githubusercontent.com/rokoter/LinuxCNC/main/installer/bootstrap.sh
+#   wget https://raw.githubusercontent.com/rokoter/LinuxCNC/feature-installer/installer/bootstrap.sh
 #   sudo bash bootstrap.sh
 #
 ################################################################################
@@ -24,6 +30,10 @@ NC='\033[0m'
 
 log() {
     echo -e "${GREEN}[BOOTSTRAP]${NC} $*"
+}
+
+warn() {
+    echo -e "${YELLOW}[WARNING]${NC} $*"
 }
 
 error() {
@@ -65,18 +75,73 @@ fi
 REPO_DIR="$ACTUAL_HOME/LinuxCNC"
 REPO_URL="https://github.com/rokoter/LinuxCNC.git"
 
+# Detect which branch this bootstrap script came from
+# Try to auto-detect from the script's own path if downloaded via wget/curl
+# Otherwise fall back to environment variable or default
+
+if [ -z "${BOOTSTRAP_BRANCH:-}" ]; then
+    # Try to detect from script location if we can
+    # When piped from curl, BASH_SOURCE doesn't exist, so use conditional
+    SCRIPT_PATH=""
+    if [ -n "${BASH_SOURCE[0]:-}" ]; then
+        SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "")"
+    fi
+    
+    # Default to main if we can't detect
+    DETECTED_BRANCH="main"
+    
+    # If script path contains a branch indicator, try to parse it
+    # This works if the script was downloaded to a predictable location
+    # But when piped from curl, SCRIPT_PATH will be empty, so we default to main
+    
+    if [[ "$SCRIPT_PATH" =~ feature-installer ]]; then
+        DETECTED_BRANCH="feature-installer"
+    fi
+    
+    BRANCH="$DETECTED_BRANCH"
+    log "Auto-detected branch: $BRANCH"
+    log "(Override with: BOOTSTRAP_BRANCH=your-branch)"
+else
+    BRANCH="$BOOTSTRAP_BRANCH"
+    log "Using specified branch: $BRANCH"
+fi
+
 if [ -d "$REPO_DIR" ]; then
     log "Repository already exists at $REPO_DIR"
     read -p "Pull latest changes? [Y/n]: " UPDATE_REPO
     if [[ ! "$UPDATE_REPO" =~ ^[Nn]$ ]]; then
-        log "Updating repository..."
+        log "Updating repository (branch: $BRANCH)..."
         cd "$REPO_DIR"
-        sudo -u "$ACTUAL_USER" git pull
+        sudo -u "$ACTUAL_USER" git fetch origin
+        
+        # Try to checkout the branch, create tracking branch if needed
+        sudo -u "$ACTUAL_USER" git checkout "$BRANCH" 2>/dev/null || \
+            sudo -u "$ACTUAL_USER" git checkout -b "$BRANCH" "origin/$BRANCH" 2>/dev/null || {
+            warn "Could not checkout branch $BRANCH"
+            warn "Available branches:"
+            sudo -u "$ACTUAL_USER" git branch -r
+            exit 1
+        }
+        
+        sudo -u "$ACTUAL_USER" git pull origin "$BRANCH"
     fi
 else
-    log "Cloning repository from $REPO_URL..."
+    log "Cloning repository from $REPO_URL (branch: $BRANCH)..."
     cd "$ACTUAL_HOME"
-    sudo -u "$ACTUAL_USER" git clone "$REPO_URL"
+    
+    # Try to clone the specific branch
+    sudo -u "$ACTUAL_USER" git clone -b "$BRANCH" "$REPO_URL" 2>/dev/null || {
+        warn "Failed to clone branch $BRANCH directly"
+        log "Cloning default branch and checking out $BRANCH..."
+        sudo -u "$ACTUAL_USER" git clone "$REPO_URL"
+        cd "$REPO_DIR"
+        sudo -u "$ACTUAL_USER" git checkout "$BRANCH" || {
+            error "Branch $BRANCH does not exist!"
+            error "Available branches:"
+            sudo -u "$ACTUAL_USER" git branch -r
+            exit 1
+        }
+    }
 fi
 
 # Check if installer exists

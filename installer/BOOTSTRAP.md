@@ -5,8 +5,14 @@
 Na een verse LinuxCNC installatie hoef je maar **één ding** te doen:
 
 ```bash
+# Development version (feature-installer branch) - USE THIS NOW!
+curl -sSL https://raw.githubusercontent.com/rokoter/LinuxCNC/feature-installer/installer/bootstrap.sh | sudo bash
+
+# Stable version (main branch) - coming soon after merge!
 curl -sSL https://raw.githubusercontent.com/rokoter/LinuxCNC/main/installer/bootstrap.sh | sudo bash
 ```
+
+**Simpel!** Geen environment variables nodig, gewoon één commando!
 
 Dat is alles! Het script doet:
 - ✅ `sudo apt update`
@@ -49,8 +55,14 @@ Na installatie, start je computer op in LinuxCNC.
 
 ### Stap 3: Run Bootstrap Script
 
-Open een terminal (Ctrl+Alt+T) en plak:
+Open een terminal (Ctrl+Alt+T) en voer dit commando uit:
 
+**Voor feature-installer branch (huidige development):**
+```bash
+curl -sSL https://raw.githubusercontent.com/rokoter/LinuxCNC/feature-installer/installer/bootstrap.sh | sudo bash
+```
+
+**Voor main branch (zodra gemerged):**
 ```bash
 curl -sSL https://raw.githubusercontent.com/rokoter/LinuxCNC/main/installer/bootstrap.sh | sudo bash
 ```
@@ -88,6 +100,39 @@ ethercat slaves
 # Start LinuxCNC
 linuxcnc ~/linuxcnc/configs/active-machine/
 ```
+
+---
+
+## 🌿 Branch Selectie
+
+### Feature-installer (Development)
+
+**Gebruik dit NU om te testen:**
+```bash
+curl -sSL https://raw.githubusercontent.com/rokoter/LinuxCNC/feature-installer/installer/bootstrap.sh | sudo bash
+```
+
+Bootstrap.sh detecteert automatisch de branch en cloned `feature-installer`.
+
+### Main (Stable - zodra gemerged)
+
+**Voor productie gebruik (na merge):**
+```bash
+curl -sSL https://raw.githubusercontent.com/rokoter/LinuxCNC/main/installer/bootstrap.sh | sudo bash
+```
+
+### Andere branches
+
+**Forceer een specifieke branch (optioneel):**
+```bash
+# Clone develop branch
+BOOTSTRAP_BRANCH=develop curl -sSL https://raw.githubusercontent.com/rokoter/LinuxCNC/feature-installer/installer/bootstrap.sh | sudo -E bash
+
+# Clone een custom branch
+BOOTSTRAP_BRANCH=feature-new-servo curl -sSL https://raw.githubusercontent.com/rokoter/LinuxCNC/feature-installer/installer/bootstrap.sh | sudo -E bash
+```
+
+**Normaal niet nodig!** Bootstrap detecteert de branch automatisch van de URL.
 
 ---
 
