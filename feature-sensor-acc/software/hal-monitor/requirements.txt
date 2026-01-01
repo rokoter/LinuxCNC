@@ -1,0 +1,21 @@
+# Python dependencies for CNC Vibration Monitor
+# Install with: pip install -r requirements.txt
+
+# Serial communication with Pico
+pyserial>=3.5
+
+# Data analysis and visualization
+numpy>=1.19.0
+matplotlib>=3.3.0
+scipy>=1.5.0
+pandas>=1.1.0
+
+# Optional: Real-time plotting
+# plotly>=5.0.0
+
+# Optional: Web dashboard (if running separate web server)
+# flask>=2.0.0
+# flask-socketio>=5.0.0
+
+# LinuxCNC HAL support (already included with LinuxCNC)
+# No additional packages needed for HAL

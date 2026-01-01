@@ -1,0 +1,64 @@
+{
+  "_comment": "WiFi configuration for Pico W management interface",
+  
+  "mode": "AP",
+  "_mode_options": ["AP", "CLIENT"],
+  "_mode_description": {
+    "AP": "Access Point - Pico creates its own WiFi network",
+    "CLIENT": "Client - Pico connects to existing WiFi network"
+  },
+  
+  "access_point": {
+    "ssid": "CNC-VibMon",
+    "password": "vibration123",
+    "channel": 6,
+    "hidden": false,
+    "max_connections": 4,
+    "_note": "Change password for security!"
+  },
+  
+  "client": {
+    "ssid": "YourNetworkName",
+    "password": "YourNetworkPassword",
+    "dhcp": true,
+    "static_ip": {
+      "enabled": false,
+      "ip": "192.168.1.100",
+      "gateway": "192.168.1.1",
+      "subnet": "255.255.255.0",
+      "dns": "192.168.1.1"
+    }
+  },
+  
+  "services": {
+    "mdns": {
+      "enabled": true,
+      "hostname": "pico-vibmon",
+      "_access_url": "http://pico-vibmon.local"
+    },
+    "webserver": {
+      "enabled": true,
+      "port": 80
+    },
+    "websocket": {
+      "enabled": true,
+      "port": 81,
+      "update_rate_hz": 10
+    }
+  },
+  
+  "_security_notes": [
+    "WiFi is for MANAGEMENT ONLY - not for safety-critical E-stop",
+    "E-stop always uses hardware GPIO pin + USB serial backup",
+    "Change default passwords immediately",
+    "Consider disabling WiFi in production if not needed",
+    "Use strong WPA2 passwords (minimum 8 characters)",
+    "In AP mode, only authorized devices should connect"
+  ],
+  
+  "_network_info": {
+    "ap_mode_default_ip": "192.168.4.1",
+    "ap_mode_subnet": "192.168.4.0/24",
+    "ap_mode_dhcp_range": "192.168.4.2 - 192.168.4.254"
+  }
+}

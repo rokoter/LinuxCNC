@@ -1,0 +1,200 @@
+# LinuxCNC HAL Configuration Example
+# Integration of CNC Vibration Monitor
+#
+# Add these lines to your machine's HAL file (usually custom.hal)
+
+# ============================================================================
+# VIBRATION MONITOR COMPONENT
+# ============================================================================
+
+# Load the Python HAL component
+# NOTE: Change /dev/ttyACM0 to match your Pico's serial port
+loadusr -W vibration_monitor.py --port /dev/ttyACM0
+
+# ============================================================================
+# HARDWARE E-STOP CONFIGURATION (Primary Safety)
+# ============================================================================
+
+# If using parallel port, connect Pico GPIO15 to parallel port pin 15
+# Assuming parport is already loaded (loadrt hal_parport cfg="0x378 out")
+
+# Read E-stop pin from parallel port
+# Pin 15 input (active LOW from Pico)
+setp parport.0.pin-15-in-invert true  # Invert because active LOW
+
+# Wire hardware E-stop to LinuxCNC motion enable
+# This provides instant hardware-level E-stop
+net hw-estop parport.0.pin-15-in => iocontrol.0.emc-enable-in
+
+# Alternative for Mesa cards (example for 7i76e):
+# net hw-estop hm2_7i76e.0.7i76.0.0.input-00 => iocontrol.0.emc-enable-in
+
+# ============================================================================
+# SOFTWARE E-STOP (Backup via USB Serial)
+# ============================================================================
+
+# Wire software E-stop trigger from vibration monitor
+net sw-estop vibration.estop-trigger => halui.estop.activate
+
+# ============================================================================
+# VIBRATION MONITORING PINS
+# ============================================================================
+
+# Current vibration level - can be displayed in PyVCP/GladeVCP
+net vib-current vibration.current
+
+# Peak vibration - useful for post-run analysis
+net vib-peak vibration.peak
+
+# RMS vibration - smoother representation
+net vib-rms vibration.rms
+
+# Status indicator (0=OK, 1=WARNING, 2=CRITICAL, 3=ESTOP)
+net vib-status vibration.status
+
+# Connection status
+net vib-connected vibration.connected
+
+# ============================================================================
+# VIBRATION MONITOR CONTROL
+# ============================================================================
+
+# Enable monitoring when machine is running
+# Option 1: Always enabled
+setp vibration.enable true
+
+# Option 2: Only enable when machine is homed and enabled
+# net machine-enabled motion.motion-enabled => vibration.enable
+
+# Set threshold values (can be adjusted at runtime)
+setp vibration.threshold-warn 2.0   # Warning at 2G
+setp vibration.threshold-crit 4.0   # Critical at 4G
+
+# Reset peak value (connect to a button if desired)
+# net reset-vib-peak pyvcp.reset-button => vibration.reset-peak
+
+# ============================================================================
+# OPTIONAL: FEED OVERRIDE BASED ON VIBRATION
+# ============================================================================
+
+# Example: Reduce feed rate when vibration is high
+# This is advanced and requires additional logic
+
+# loadrt limit1 names=vib-feed-limiter
+# addf vib-feed-limiter servo-thread
+
+# # Normal feed override = 1.0 (100%)
+# # When vibration is critical, reduce to 0.5 (50%)
+# setp vib-feed-limiter.min 0.5
+# setp vib-feed-limiter.max 1.0
+# setp vib-feed-limiter.maxv 0.1  # Rate of change
+
+# # Connect to feed override (this is simplified - needs more logic)
+# # net vib-feed-adjust vib-feed-limiter.out => halui.feed-override.scale
+
+# ============================================================================
+# OPTIONAL: PYVCP PANEL INTEGRATION
+# ============================================================================
+
+# Add to your custom_pyvcp.xml:
+# 
+# <vbox>
+#   <label>
+#     <text>"Vibration Monitor"</text>
+#     <font>("Helvetica",16,"bold")</font>
+#   </label>
+#   
+#   <hbox>
+#     <label>
+#       <text>"Current:"</text>
+#     </label>
+#     <number>
+#       <halpin>"vib-current-display"</halpin>
+#       <font>("Helvetica",14)</font>
+#       <format>"+4.2f"</format>
+#     </number>
+#     <label>
+#       <text>"G"</text>
+#     </label>
+#   </hbox>
+#   
+#   <hbox>
+#     <label>
+#       <text>"Peak:"</text>
+#     </label>
+#     <number>
+#       <halpin>"vib-peak-display"</halpin>
+#       <font>("Helvetica",14)</font>
+#       <format>"+4.2f"</format>
+#     </number>
+#     <label>
+#       <text>"G"</text>
+#     </label>
+#   </hbox>
+#   
+#   <hbox>
+#     <label>
+#       <text>"Status:"</text>
+#     </label>
+#     <led>
+#       <halpin>"vib-status-ok"</halpin>
+#       <size>30</size>
+#       <on_color>"green"</on_color>
+#     </led>
+#     <led>
+#       <halpin>"vib-status-warn"</halpin>
+#       <size>30</size>
+#       <on_color>"yellow"</on_color>
+#     </led>
+#     <led>
+#       <halpin>"vib-status-crit"</halpin>
+#       <size>30</size>
+#       <on_color>"red"</on_color>
+#     </led>
+#   </hbox>
+#   
+#   <button>
+#     <halpin>"reset-vib-peak"</halpin>
+#     <text>"Reset Peak"</text>
+#   </button>
+# </vbox>
+#
+# Then in HAL:
+# net vib-current vibration.current => pyvcp.vib-current-display
+# net vib-peak vibration.peak => pyvcp.vib-peak-display
+# net reset-peak pyvcp.reset-vib-peak => vibration.reset-peak
+# 
+# # Status LEDs (need additional logic components)
+# # setp pyvcp.vib-status-ok true (when vibration.status == 0)
+# # setp pyvcp.vib-status-warn true (when vibration.status == 1)
+# # setp pyvcp.vib-status-crit true (when vibration.status >= 2)
+
+# ============================================================================
+# NOTES
+# ============================================================================
+#
+# 1. Hardware E-stop (GPIO pin) should ALWAYS be connected for safety
+#    - This provides instant protection independent of software
+#    - Software E-stop is backup only
+#
+# 2. Verify your serial port:
+#    - Run: ls /dev/ttyACM* or ls /dev/ttyUSB*
+#    - Common ports: /dev/ttyACM0, /dev/ttyUSB0
+#
+# 3. Ensure user has permission for serial port:
+#    - sudo usermod -a -G dialout $USER
+#    - Log out and back in
+#
+# 4. Test the component standalone first:
+#    - halrun
+#    - loadusr vibration_monitor.py --port /dev/ttyACM0
+#    - show pin vibration
+#
+# 5. For debugging, watch HAL pins:
+#    - halcmd show pin vibration
+#    - halmeter (GUI tool)
+#
+# 6. Threshold values depend on your machine:
+#    - Run calibration tests first
+#    - Adjust based on your machine's characteristics
+#    - Start conservative, lower thresholds as you gain confidence

@@ -1,0 +1,62 @@
+{
+  "_comment": "Vibration threshold configuration for CNC monitor",
+  "_units": "G-force (1G = 9.81 m/s²)",
+  
+  "thresholds": {
+    "warning": 2.0,
+    "critical": 4.0,
+    "emergency": 6.0,
+    "hysteresis": 0.2
+  },
+  
+  "_threshold_descriptions": {
+    "warning": "Yellow LED, log warning event, consider checking setup",
+    "critical": "Red LED, reduce feed rate recommended, check for issues",
+    "emergency": "E-STOP triggered, immediate machine halt for safety",
+    "hysteresis": "Amount to drop below threshold before clearing status"
+  },
+  
+  "_calibration_guidelines": {
+    "light_machining": {
+      "description": "Soft materials, low DOC, finishing passes",
+      "recommended_thresholds": {
+        "warning": 1.5,
+        "critical": 3.0,
+        "emergency": 5.0
+      }
+    },
+    "normal_machining": {
+      "description": "Aluminum, moderate cuts, general purpose",
+      "recommended_thresholds": {
+        "warning": 2.0,
+        "critical": 4.0,
+        "emergency": 6.0
+      }
+    },
+    "heavy_machining": {
+      "description": "Steel, aggressive cuts, roughing passes",
+      "recommended_thresholds": {
+        "warning": 3.0,
+        "critical": 5.0,
+        "emergency": 8.0
+      }
+    },
+    "high_speed": {
+      "description": "High RPM operations, engraving, PCB milling",
+      "recommended_thresholds": {
+        "warning": 1.0,
+        "critical": 2.0,
+        "emergency": 3.5
+      }
+    }
+  },
+  
+  "_notes": [
+    "These are starting values - calibrate for YOUR specific machine",
+    "Run test patterns without workpiece first",
+    "Monitor logs and adjust thresholds based on actual vibration levels",
+    "Emergency threshold should be ~2-3x your normal operating vibration",
+    "Start conservative, lower thresholds as you gain confidence",
+    "Different materials and cutting conditions may need different profiles"
+  ]
+}

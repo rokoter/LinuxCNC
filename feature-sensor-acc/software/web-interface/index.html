@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CNC Vibration Monitor</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1>🔧 CNC Vibration Monitor</h1>
+            <div class="connection-status">
+                <span id="connection-indicator" class="indicator disconnected"></span>
+                <span id="connection-text">Verbinden...</span>
+            </div>
+        </header>
+
+        <!-- Status Panel -->
+        <div class="panel status-panel">
+            <h2>Status</h2>
+            <div class="status-grid">
+                <div class="status-card" id="status-card">
+                    <div class="status-icon">●</div>
+                    <div class="status-label">Systeem</div>
+                    <div class="status-value" id="system-status">OK</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-label">Huidig</div>
+                    <div class="status-value" id="current-vib">0.00 G</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-label">Piek</div>
+                    <div class="status-value" id="peak-vib">0.00 G</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-label">RMS</div>
+                    <div class="status-value" id="rms-vib">0.00 G</div>
+                </div>
+            </div>
+
+            <!-- Vibration Meter -->
+            <div class="meter-container">
+                <div class="meter-label">Trillingsniveau</div>
+                <div class="meter">
+                    <div class="meter-bar" id="vib-meter-bar"></div>
+                </div>
+                <div class="meter-marks">
+                    <span>0</span>
+                    <span class="warning-mark">2G</span>
+                    <span class="critical-mark">4G</span>
+                    <span class="emergency-mark">6G</span>
+                    <span>8+</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Chart Panel -->
+        <div class="panel chart-panel">
+            <h2>Live Monitoring</h2>
+            <canvas id="vibrationChart"></canvas>
+        </div>
+
+        <!-- Configuration Panel -->
+        <div class="panel config-panel">
+            <h2>Configuratie</h2>
+            
+            <div class="config-section">
+                <h3>Drempelwaarden</h3>
+                
+                <div class="config-row">
+                    <label for="threshold-warn">Waarschuwing:</label>
+                    <input type="range" id="threshold-warn" min="0.5" max="5" step="0.1" value="2.0">
+                    <span id="threshold-warn-value">2.0 G</span>
+                </div>
+                
+                <div class="config-row">
+                    <label for="threshold-crit">Kritisch:</label>
+                    <input type="range" id="threshold-crit" min="1" max="8" step="0.1" value="4.0">
+                    <span id="threshold-crit-value">4.0 G</span>
+                </div>
+                
+                <div class="config-row">
+                    <label for="threshold-emerg">E-stop:</label>
+                    <input type="range" id="threshold-emerg" min="2" max="10" step="0.1" value="6.0">
+                    <span id="threshold-emerg-value">6.0 G</span>
+                </div>
+                
+                <button class="btn-primary" id="save-config">Opslaan</button>
+                <button class="btn-secondary" id="reset-config">Reset</button>
+            </div>
+
+            <div class="config-section">
+                <h3>Acties</h3>
+                <button class="btn-secondary" id="reset-peak">Reset Piek</button>
+                <button class="btn-secondary" id="download-log">Download Log</button>
+            </div>
+        </div>
+
+        <!-- Info Panel -->
+        <div class="panel info-panel">
+            <h2>Systeem Info</h2>
+            <table class="info-table">
+                <tr>
+                    <td>Firmware versie:</td>
+                    <td id="firmware-version">-</td>
+                </tr>
+                <tr>
+                    <td>Uptime:</td>
+                    <td id="uptime">-</td>
+                </tr>
+                <tr>
+                    <td>Sample rate:</td>
+                    <td id="sample-rate">100 Hz</td>
+                </tr>
+                <tr>
+                    <td>IP adres:</td>
+                    <td id="ip-address">-</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>CNC Vibration Monitor v1.0 | RP2040 Pico W + MPU6050</p>
+            <p>WiFi interface voor management - E-stop via hardware GPIO + USB</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
