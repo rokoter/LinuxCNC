@@ -14,7 +14,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEFAULT_GIT_REPO="https://github.com/rokoter/LinuxCNC.git"
 DEFAULT_GIT_BRANCH="main"
 DEFAULT_HOSTNAME="linuxcnc"
-DEFAULT_USERNAME="$USER"
+
+# Determine the actual user (not root when using sudo)
+if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+    ACTUAL_USER="$SUDO_USER"
+    ACTUAL_HOME=$(getent passwd "$SUDO_USER" | cut -d: -f6)
+else
+    ACTUAL_USER="$USER"
+    ACTUAL_HOME="$HOME"
+fi
+
+DEFAULT_USERNAME="$ACTUAL_USER"
 
 # Colors for output
 RED='\033[0;31m'
@@ -232,20 +242,34 @@ clone_or_update_repo() {
         return 0
     fi
     
-    local repo_dir="/home/$DEFAULT_USERNAME/LinuxCNC"
+    local repo_dir="$ACTUAL_HOME/LinuxCNC"
+    
+    # Ensure home directory exists
+    if [ ! -d "$ACTUAL_HOME" ]; then
+        error "Home directory $ACTUAL_HOME does not exist!"
+        return 1
+    fi
     
     if [ -d "$repo_dir" ]; then
         log "Repository exists, updating..."
-        cd "$repo_dir"
+        cd "$repo_dir" || {
+            error "Failed to change to repository directory"
+            return 1
+        }
         git fetch origin
         git checkout "$GIT_BRANCH"
         git pull origin "$GIT_BRANCH"
     else
         log "Cloning repository..."
-        cd "/home/$DEFAULT_USERNAME"
+        cd "$ACTUAL_HOME" || {
+            error "Failed to change to home directory"
+            return 1
+        }
         git clone -b "$GIT_BRANCH" "$DEFAULT_GIT_REPO"
         chown -R "$DEFAULT_USERNAME:$DEFAULT_USERNAME" "$repo_dir"
     fi
+    
+    log "Repository location: $repo_dir"
 }
 
 ################################################################################
@@ -257,6 +281,9 @@ main() {
     
     # Check prerequisites
     check_root
+    
+    # Run pre-flight checks
+    run_module "preflight-checks"
     
     # Interactive configuration
     show_machine_menu
@@ -277,7 +304,6 @@ main() {
     clone_or_update_repo
     
     # Run modular installation steps
-    # TODO: These modules need to be created with your specific requirements
     run_module "install-ethercat"
     run_module "install-linuxcnc"
     run_module "optimize-realtime"
@@ -292,7 +318,7 @@ main() {
     echo "2. Run latency test: latency-histogram"
     echo "3. Start LinuxCNC with your config"
     echo ""
-    echo "Configuration location: /home/$DEFAULT_USERNAME/LinuxCNC/$CONFIG_PATH"
+    echo "Configuration location: $ACTUAL_HOME/LinuxCNC/$CONFIG_PATH"
     echo ""
     
     read -p "Reboot now? [y/N]: " REBOOT_NOW

@@ -158,12 +158,22 @@ ethercat slaves || warn "No EtherCAT slaves detected (this is normal if nothing 
 # Install cia402 HAL component
 log "Installing cia402 HAL component..."
 
-CIA402_DIR="/home/$DEFAULT_USERNAME/dev/hal-cia402"
-mkdir -p "/home/$DEFAULT_USERNAME/dev"
+# Determine actual user's home directory
+if [ -n "$ACTUAL_HOME" ]; then
+    USER_HOME="$ACTUAL_HOME"
+else
+    USER_HOME="/home/$DEFAULT_USERNAME"
+fi
+
+CIA402_DIR="$USER_HOME/dev/hal-cia402"
+mkdir -p "$USER_HOME/dev"
 
 if [ ! -d "$CIA402_DIR" ]; then
     log "Cloning cia402 repository..."
-    cd "/home/$DEFAULT_USERNAME/dev"
+    cd "$USER_HOME/dev" || {
+        error "Failed to change to dev directory"
+        return 1
+    }
     git clone https://github.com/dbraun1981/hal-cia402
     chown -R "$DEFAULT_USERNAME:$DEFAULT_USERNAME" "$CIA402_DIR"
 else

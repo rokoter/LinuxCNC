@@ -6,9 +6,16 @@
 
 log "Setting up machine configuration..."
 
+# Determine actual user's home directory
+if [ -n "$ACTUAL_HOME" ]; then
+    USER_HOME="$ACTUAL_HOME"
+else
+    USER_HOME="/home/$DEFAULT_USERNAME"
+fi
+
 # Repository location
-REPO_DIR="/home/$DEFAULT_USERNAME/LinuxCNC"
-LINUXCNC_CONFIG_DIR="/home/$DEFAULT_USERNAME/linuxcnc/configs"
+REPO_DIR="$USER_HOME/LinuxCNC"
+LINUXCNC_CONFIG_DIR="$USER_HOME/linuxcnc/configs"
 
 # Create LinuxCNC config directory if it doesn't exist
 mkdir -p "$LINUXCNC_CONFIG_DIR"
@@ -19,7 +26,7 @@ MACHINE_CONFIG_SOURCE="$REPO_DIR/$CONFIG_PATH"
 if [ ! -d "$MACHINE_CONFIG_SOURCE" ]; then
     error "Machine configuration not found: $MACHINE_CONFIG_SOURCE"
     warn "Available configurations:"
-    find "$REPO_DIR/ethercat" -type d -maxdepth 1
+    find "$REPO_DIR/ethercat" -type d -maxdepth 1 2>/dev/null || echo "Repository not found"
     return 1
 fi
 

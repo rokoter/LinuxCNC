@@ -8,10 +8,12 @@ Automated installation and configuration system for LinuxCNC EtherCAT machines.
 - ✅ Command-line automation support
 - ✅ Git branch selection (main, develop, custom)
 - ✅ Multiple machine type support
+- ✅ **Pre-flight system validation** (NEW in v1.0.1)
 - ✅ Realtime optimization (CPU isolation, GRUB config)
 - ✅ EtherCAT master installation
 - ✅ Modular design (easy to extend)
 - ✅ Ansible-ready structure (for future migration)
+- ✅ **Proper sudo/root handling** (FIXED in v1.0.1)
 
 ## Quick Start
 
@@ -70,6 +72,14 @@ installer/
 
 ## What the Installer Does
 
+### 0. Pre-flight Checks (NEW)
+- Validates system requirements
+- Checks disk space (minimum 5GB)
+- Verifies internet connectivity
+- Detects RT kernel
+- Warns about virtualization
+- Checks for conflicting packages
+
 ### 1. System Setup
 - Sets hostname
 - Updates package lists
@@ -80,13 +90,17 @@ installer/
 - Configures EtherCAT network interface
 - Sets up systemd service
 
-### 3. Realtime Optimization
+### 3. LinuxCNC Installation
+- Verifies or installs LinuxCNC packages
+- Installs optional tools (mesaflash, docs)
+
+### 4. Realtime Optimization
 - Configures CPU isolation (isolcpus)
 - Updates GRUB with realtime parameters
 - Disables unnecessary services
 - Configures network interface for low latency
 
-### 4. Machine Configuration
+### 5. Machine Configuration
 - Clones/updates your LinuxCNC configuration repository
 - Creates symbolic links to active machine config
 - Compiles HAL components (cia402.comp)
