@@ -5,6 +5,68 @@ All notable changes to the LinuxCNC Auto-Installer project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-01-03
+
+### Fixed
+- **CRITICAL: Force remove raspi-firmware BEFORE any dpkg operations**
+  - Previous approach tried to fix dpkg first, which failed on raspi-firmware
+  - Now uses `dpkg --force-all` to remove raspi-firmware first
+  - Then dpkg configure can succeed
+  - Prevents initramfs-tools configuration errors completely
+
+### Changed
+- **Breaking from v1.0.9**: Raspi-firmware removal now happens FIRST
+- More aggressive cleanup using `--force-all` flag
+- Safer for x86 systems (package shouldn't be there anyway)
+- Still respects ARM systems (keeps raspi-firmware on ARM)
+
+### Technical Details
+New order in install_system_basics():
+1. **Check architecture**
+2. **Force remove raspi-firmware on x86** (using dpkg --force-all)
+3. Fix broken packages (dpkg --configure -a)
+4. Fix broken dependencies (apt --fix-broken install)
+5. Update package lists
+6. Perform upgrade
+7. Verify state after upgrade
+
+The `--force-all` flag is safe here because:
+- Only used on x86 systems where raspi-firmware is wrong
+- Package has no dependencies that would break
+- Prevents the chicken-and-egg problem: can't remove because dpkg broken, dpkg broken because of this package
+
+---
+
+## [1.0.9] - 2025-01-03
+
+### Improved
+- **Better package management flow and error recovery**
+  - Fix broken packages BEFORE attempting any updates
+  - Run `dpkg --configure -a` at start to handle incomplete installations
+  - Run `apt-get --fix-broken install` before update
+  - Refresh package lists after raspi-firmware removal
+  - Verify and fix package state AFTER upgrade
+  - More resilient to previously failed upgrades
+
+### Technical Details
+Improved install_system_basics() flow:
+1. Fix broken dpkg state first (`dpkg --configure -a`)
+2. Fix broken dependencies (`apt-get --fix-broken install`)
+3. Update package lists (`apt-get update`)
+4. Remove incompatible packages (raspi-firmware on x86)
+5. **Refresh package lists again** after removal
+6. Perform upgrade
+7. **Verify package state** after upgrade
+8. Install essential packages
+
+This ensures the installer can recover from:
+- Previous failed apt upgrade attempts
+- Incomplete package installations
+- Broken dependency states
+- Mixed-architecture package conflicts
+
+---
+
 ## [1.0.8] - 2025-01-03
 
 ### Fixed

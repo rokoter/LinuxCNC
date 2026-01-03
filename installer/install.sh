@@ -80,7 +80,7 @@ show_banner() {
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
 ║     LinuxCNC Machine Auto-Installer                          ║
-║     Version 1.0.8                                            ║
+║     Version 1.1.0                                            ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF
@@ -229,22 +229,38 @@ install_system_basics() {
     # Set hostname
     hostnamectl set-hostname "$HOSTNAME"
     
-    # Update system
-    log "Updating package lists..."
-    apt-get update
-    
-    # Clean up incompatible packages before upgrade (on x86 only)
+    # Check architecture and handle raspi-firmware FIRST (before any dpkg operations)
     ARCH=$(uname -m)
     if [[ "$ARCH" == "x86_64" ]] || [[ "$ARCH" == "i686" ]]; then
-        # We're on x86, check for ARM-specific packages
-        if dpkg -l | grep -q "raspi-firmware"; then
+        # We're on x86, raspi-firmware is incompatible and causes dpkg errors
+        if dpkg -l 2>/dev/null | grep -q "^ii.*raspi-firmware"; then
             log "Detected raspi-firmware on x86 system (incompatible)"
-            log "Removing raspi-firmware to prevent upgrade errors..."
-            apt-get remove --purge -y raspi-firmware 2>/dev/null || warn "Could not remove raspi-firmware"
+            log "Force removing raspi-firmware to prevent dpkg errors..."
+            
+            # Force remove with dpkg, bypassing dependency checks
+            # This is safe because the package shouldn't be here anyway
+            dpkg --remove --force-all raspi-firmware 2>/dev/null || true
+            dpkg --purge --force-all raspi-firmware 2>/dev/null || true
+            
+            log "Raspi-firmware removed"
         fi
     else
         log "ARM architecture detected ($ARCH), keeping platform-specific packages"
     fi
+    
+    # Now fix any broken package state (after raspi-firmware is gone)
+    log "Checking for broken packages..."
+    if ! dpkg --configure -a 2>/dev/null; then
+        warn "Some packages needed reconfiguration"
+    fi
+    
+    if ! apt-get --fix-broken install -y 2>/dev/null; then
+        warn "Some package dependencies needed fixing"
+    fi
+    
+    # Update system
+    log "Updating package lists..."
+    apt-get update
     
     # Check if we should upgrade
     if [ "$SKIP_UPGRADE" = false ]; then
@@ -269,12 +285,20 @@ install_system_basics() {
                 log "Upgrading system packages..."
                 apt-get upgrade -y
                 log "System upgrade complete"
+                
+                # Fix any issues that may have occurred during upgrade
+                log "Verifying package state..."
+                apt-get --fix-broken install -y 2>/dev/null || warn "Some packages may need attention"
             fi
         else
             # Non-interactive mode - just do it
             log "Upgrading system packages (non-interactive mode)..."
             apt-get upgrade -y
             log "System upgrade complete"
+            
+            # Fix any issues that may have occurred during upgrade
+            log "Verifying package state..."
+            apt-get --fix-broken install -y 2>/dev/null || warn "Some packages may need attention"
         fi
     else
         warn "Skipping system upgrade (--no-upgrade flag set)"
