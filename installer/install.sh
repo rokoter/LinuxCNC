@@ -33,6 +33,7 @@ CONFIG_PATH="ethercat/ihsv-homing"
 GIT_BRANCH="main"
 GIT_PULL=true
 HOSTNAME="$DEFAULT_HOSTNAME"
+SKIP_UPGRADE=false  # Default: do upgrade (can override with --no-upgrade)
 
 # Colors for output
 RED='\033[0;31m'
@@ -79,7 +80,7 @@ show_banner() {
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
 ║     LinuxCNC Machine Auto-Installer                          ║
-║     Version 1.0.3                                            ║
+║     Version 1.0.6                                            ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF
@@ -232,6 +233,40 @@ install_system_basics() {
     log "Updating package lists..."
     apt-get update
     
+    # Check if we should upgrade
+    if [ "$SKIP_UPGRADE" = false ]; then
+        # Interactive mode - ask user
+        if [ -t 0 ]; then
+            echo ""
+            echo "==================================================================="
+            echo "System Update"
+            echo "==================================================================="
+            echo ""
+            echo "It is recommended to upgrade all system packages before installing"
+            echo "LinuxCNC and EtherCAT components."
+            echo ""
+            echo "This may download ~500MB and take 5-10 minutes."
+            echo ""
+            read -p "Upgrade system packages now? [Y/n]: " DO_UPGRADE
+            
+            if [[ "$DO_UPGRADE" =~ ^[Nn]$ ]]; then
+                warn "Skipping system upgrade"
+                warn "You may encounter package conflicts or missing dependencies"
+            else
+                log "Upgrading system packages..."
+                apt-get upgrade -y
+                log "System upgrade complete"
+            fi
+        else
+            # Non-interactive mode - just do it
+            log "Upgrading system packages (non-interactive mode)..."
+            apt-get upgrade -y
+            log "System upgrade complete"
+        fi
+    else
+        warn "Skipping system upgrade (--no-upgrade flag set)"
+    fi
+    
     # Install essential packages
     log "Installing essential packages..."
     apt-get install -y \
@@ -366,14 +401,41 @@ main() {
     
     # Final summary
     echo ""
+    echo "=================================================================="
     log "Installation complete!"
+    echo "=================================================================="
+    echo ""
+    
+    # Show BIOS recommendations
+    echo "⚙️  IMPORTANT: BIOS Configuration Required"
+    echo ""
+    echo "For optimal realtime performance, configure your BIOS:"
+    echo ""
+    echo "DISABLE:"
+    echo "  • Intel SpeedStep / EIST"
+    echo "  • Turbo Boost / Turbo Mode"  
+    echo "  • C-States (C3, C6, C7, etc.)"
+    echo "  • Package C-State"
+    echo "  • Enhanced Halt State (C1E)"
+    echo "  • Hyper-Threading (test both)"
+    echo ""
+    echo "ENABLE:"
+    echo "  • Performance Mode"
+    echo ""
+    echo "📄 Full instructions saved to: ~/BIOS_RECOMMENDATIONS.txt"
+    echo ""
+    echo "=================================================================="
     echo ""
     echo "=== Next Steps ==="
-    echo "1. Reboot the system: sudo reboot"
-    echo "2. Run latency test: latency-histogram"
-    echo "3. Start LinuxCNC with your config"
+    echo "1. Configure BIOS settings (see above)"
+    echo "2. Reboot the system: sudo reboot"
+    echo "3. Run latency test: latency-histogram (target: <50µs)"
+    echo "4. Fix EtherCAT permissions: sudo chmod 666 /dev/EtherCAT0"
+    echo "5. Start LinuxCNC: linuxcnc ~/linuxcnc/configs/active-machine/<config>.ini"
     echo ""
-    echo "Configuration location: $ACTUAL_HOME/LinuxCNC/$CONFIG_PATH"
+    echo "Configuration: $ACTUAL_HOME/LinuxCNC/$CONFIG_PATH"
+    echo ""
+    echo "=================================================================="
     echo ""
     
     read -p "Reboot now? [y/N]: " REBOOT_NOW
@@ -426,6 +488,14 @@ parse_args() {
                 GIT_PULL=false
                 shift
                 ;;
+            --no-upgrade)
+                SKIP_UPGRADE=true
+                shift
+                ;;
+            --upgrade)
+                SKIP_UPGRADE=false
+                shift
+                ;;
             --help)
                 show_help
                 exit 0
@@ -450,17 +520,22 @@ OPTIONS:
     --branch BRANCH     Git branch to use (main, develop, custom)
     --hostname NAME     Set hostname
     --local             Use local files, skip git pull
+    --upgrade           Force system package upgrade (default in non-interactive)
+    --no-upgrade        Skip system package upgrade
     --help              Show this help message
 
 EXAMPLES:
-    # Interactive mode
+    # Interactive mode (will ask about upgrade)
     sudo $0
 
-    # Automated mode
+    # Automated mode with upgrade
     sudo $0 --machine xyz-gantry --branch main --hostname mill-01
 
+    # Skip system upgrade (faster, but may have issues)
+    sudo $0 --machine ihsv-single --no-upgrade
+
     # Use local files
-    sudo $0 --machine ihsv-single --local
+    sudo $0 --local
 
 EOF
 }
@@ -492,14 +567,41 @@ if [ $# -gt 0 ]; then
     
     # Final summary
     echo ""
+    echo "=================================================================="
     log "Installation complete!"
+    echo "=================================================================="
+    echo ""
+    
+    # Show BIOS recommendations
+    echo "⚙️  IMPORTANT: BIOS Configuration Required"
+    echo ""
+    echo "For optimal realtime performance, configure your BIOS:"
+    echo ""
+    echo "DISABLE:"
+    echo "  • Intel SpeedStep / EIST"
+    echo "  • Turbo Boost / Turbo Mode"
+    echo "  • C-States (C3, C6, C7, etc.)"
+    echo "  • Package C-State"
+    echo "  • Enhanced Halt State (C1E)"
+    echo "  • Hyper-Threading (test both)"
+    echo ""
+    echo "ENABLE:"
+    echo "  • Performance Mode"
+    echo ""
+    echo "📄 Full instructions saved to: ~/BIOS_RECOMMENDATIONS.txt"
+    echo ""
+    echo "=================================================================="
     echo ""
     echo "=== Next Steps ==="
-    echo "1. Reboot the system: sudo reboot"
-    echo "2. Run latency test: latency-histogram"
-    echo "3. Start LinuxCNC with your config"
+    echo "1. Configure BIOS settings (see above)"
+    echo "2. Reboot the system: sudo reboot"
+    echo "3. Run latency test: latency-histogram (target: <50µs)"
+    echo "4. Fix EtherCAT permissions: sudo chmod 666 /dev/EtherCAT0"
+    echo "5. Start LinuxCNC: linuxcnc ~/linuxcnc/configs/active-machine/<config>.ini"
     echo ""
-    echo "Configuration location: $ACTUAL_HOME/LinuxCNC/$CONFIG_PATH"
+    echo "Configuration: $ACTUAL_HOME/LinuxCNC/$CONFIG_PATH"
+    echo ""
+    echo "=================================================================="
     echo ""
 else
     # Run interactively

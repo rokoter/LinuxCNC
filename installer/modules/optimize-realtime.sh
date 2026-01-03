@@ -55,17 +55,24 @@ fi
 # Disable power management on EtherCAT interface
 log "Configuring EtherCAT network interface..."
 
-# Create udev rule for EtherCAT interface
-cat > /etc/udev/rules.d/99-ethercat.rules << 'EOF'
-# Disable power management and offloading for EtherCAT interface
-SUBSYSTEM=="net", ACTION=="add", KERNEL=="eth0", RUN+="/usr/sbin/ethtool -s %k wol d"
-SUBSYSTEM=="net", ACTION=="add", KERNEL=="eth0", RUN+="/usr/sbin/ethtool -K %k gro off"
-SUBSYSTEM=="net", ACTION=="add", KERNEL=="eth0", RUN+="/usr/sbin/ethtool -K %k lro off"
-SUBSYSTEM=="net", ACTION=="add", KERNEL=="eth0", RUN+="/usr/sbin/ethtool -K %k tso off"
-SUBSYSTEM=="net", ACTION=="add", KERNEL=="eth0", RUN+="/usr/sbin/ethtool -K %k gso off"
-EOF
-
-log "Created udev rules for EtherCAT interface"
+# Note: 99-ethercat.rules is created by install-ethercat.sh
+# We only need to ensure network optimizations are present
+# Check if the file exists and has EtherCAT permissions rule
+if [ -f /etc/udev/rules.d/99-ethercat.rules ]; then
+    if ! grep -q "KERNEL.*EtherCAT" /etc/udev/rules.d/99-ethercat.rules; then
+        warn "EtherCAT permissions rule missing from udev rules"
+        log "Adding EtherCAT device permissions to existing rules..."
+        # Prepend the EtherCAT rule
+        echo '# EtherCAT device permissions' | cat - /etc/udev/rules.d/99-ethercat.rules > /tmp/99-ethercat.rules.tmp
+        echo 'KERNEL=="EtherCAT[0-9]*", MODE="0666"' >> /tmp/99-ethercat.rules.tmp
+        echo '' >> /tmp/99-ethercat.rules.tmp
+        cat /etc/udev/rules.d/99-ethercat.rules >> /tmp/99-ethercat.rules.tmp
+        mv /tmp/99-ethercat.rules.tmp /etc/udev/rules.d/99-ethercat.rules
+    fi
+    log "EtherCAT udev rules verified"
+else
+    log "Note: EtherCAT udev rules will be created by install-ethercat module"
+fi
 
 # Disable unnecessary services
 log "Disabling unnecessary services..."
@@ -84,31 +91,40 @@ for service in "${SERVICES_TO_DISABLE[@]}"; do
 done
 
 # Display BIOS recommendations
-echo ""
-echo "==================================================================="
-echo "IMPORTANT: BIOS Settings Recommendations"
-echo "==================================================================="
-echo ""
-echo "For optimal realtime performance, configure your BIOS:"
-echo ""
-echo "DISABLE:"
-echo "  - Intel SpeedStep / EIST"
-echo "  - Turbo Boost / Turbo Mode"
-echo "  - C-States (C3, C6, C7, etc.)"
-echo "  - Package C-State"
-echo "  - CPU C-States"
-echo "  - Enhanced Halt State (C1E)"
-echo "  - Hyper-Threading (test both enabled/disabled)"
-echo ""
-echo "ENABLE:"
-echo "  - Performance Mode (if available)"
-echo ""
-echo "After changing BIOS settings, run latency test:"
-echo "  latency-histogram"
-echo ""
-echo "Target: servo thread max < 50µs"
-echo "==================================================================="
-echo ""
+BIOS_RECOMMENDATIONS_FILE="$ACTUAL_HOME/BIOS_RECOMMENDATIONS.txt"
+
+cat > "$BIOS_RECOMMENDATIONS_FILE" << 'EOF'
+=================================================================
+IMPORTANT: BIOS Settings Recommendations
+=================================================================
+
+For optimal realtime performance, configure your BIOS:
+
+DISABLE:
+  - Intel SpeedStep / EIST
+  - Turbo Boost / Turbo Mode
+  - C-States (C3, C6, C7, etc.)
+  - Package C-State
+  - CPU C-States
+  - Enhanced Halt State (C1E)
+  - Hyper-Threading (test both enabled/disabled)
+
+ENABLE:
+  - Performance Mode (if available)
+
+After changing BIOS settings, run latency test:
+  latency-histogram
+
+Target: servo thread max < 50µs
+
+=================================================================
+This file saved to: ~/BIOS_RECOMMENDATIONS.txt
+=================================================================
+EOF
+
+chown "$DEFAULT_USERNAME:$DEFAULT_USERNAME" "$BIOS_RECOMMENDATIONS_FILE"
+
+log "BIOS recommendations saved to $BIOS_RECOMMENDATIONS_FILE"
 
 log "Realtime optimization complete"
 log "NOTE: Reboot required for changes to take effect"

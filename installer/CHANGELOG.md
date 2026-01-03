@@ -5,6 +5,74 @@ All notable changes to the LinuxCNC Auto-Installer project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2025-01-03
+
+### Added
+- **System package upgrade now included** (as recommended in forum guide)
+  - Interactive prompt asks user if they want to upgrade (~500MB download)
+  - Non-interactive mode upgrades by default
+  - New flags: `--upgrade` (force) and `--no-upgrade` (skip)
+  - Follows forum best practice: "apt update" then install
+
+### Improved
+- Better handling of package upgrades in different modes
+- Clear warning if user skips upgrade
+- Help text updated with upgrade options
+
+### Technical Details
+- Added `SKIP_UPGRADE` variable (default: false)
+- Interactive mode prompts user (default: Yes)
+- Non-interactive mode upgrades automatically
+- `--no-upgrade` flag for fast testing/development
+
+---
+
+## [1.0.5] - 2025-01-03
+
+### Improved
+- **BIOS recommendations now prominently displayed at end of installation**
+  - No longer scrolls off screen during installation
+  - Shown in final summary after all modules complete
+  - Also saved to `~/BIOS_RECOMMENDATIONS.txt` for reference
+  - Includes all critical settings needed for realtime performance
+
+### Added
+- EtherCAT permissions fix reminder in final summary
+- Target latency values in next steps (< 50µs)
+- Numbered checklist for post-installation steps
+- Better visual formatting with emojis for important sections
+
+### Technical Details
+- `optimize-realtime.sh` saves BIOS recommendations to file
+- Both interactive and non-interactive flows show BIOS settings
+- Final summary now includes 5-step checklist
+- File saved with proper ownership for user access
+
+---
+
+## [1.0.4] - 2025-01-03
+
+### Fixed
+- **CRITICAL**: Fixed EtherCAT device permissions being overwritten
+  - `optimize-realtime.sh` was overwriting udev rules created by `install-ethercat.sh`
+  - EtherCAT device permissions (`KERNEL=="EtherCAT[0-9]*"`) were lost
+  - Caused "Permission denied" on `/dev/EtherCAT0`
+
+### Improved
+- `optimize-realtime.sh` now checks for existing udev rules instead of overwriting
+- Added `udevadm trigger` to apply rules immediately
+- Better comments explaining MODE="0666" vs "0777" (0666 is safer)
+- Wildcard pattern `EtherCAT[0-9]*` instead of `EtherCAT[0-9]` for better matching
+
+### Technical Details
+- Module execution order issue resolved:
+  1. `install-ethercat.sh` creates complete udev rules
+  2. `optimize-realtime.sh` now verifies instead of overwriting
+- MODE="0666" (rw-rw-rw-) is sufficient and safer than MODE="0777"
+- Added `udevadm trigger` for immediate rule application
+
+---
+
 ## [1.0.3] - 2025-01-03
 
 ### Fixed

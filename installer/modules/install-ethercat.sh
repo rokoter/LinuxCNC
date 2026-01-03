@@ -132,10 +132,11 @@ chmod 666 /dev/EtherCAT0 2>/dev/null || warn "Could not set permissions (device 
 log "Creating udev rule for EtherCAT device permissions..."
 cat > /etc/udev/rules.d/99-ethercat.rules << 'EOF'
 # EtherCAT device permissions
-KERNEL=="EtherCAT[0-9]", MODE="0666"
+# MODE 0666 = rw-rw-rw- (sufficient for LinuxCNC, safer than 0777)
+KERNEL=="EtherCAT[0-9]*", MODE="0666"
 
 # Disable power management and offloading for EtherCAT interface
-# Note: Replace eth0 with your actual interface if different
+# Note: Interface name will be replaced with actual interface
 SUBSYSTEM=="net", ACTION=="add", KERNEL=="eth0", RUN+="/usr/sbin/ethtool -s %k wol d"
 SUBSYSTEM=="net", ACTION=="add", KERNEL=="eth0", RUN+="/usr/sbin/ethtool -K %k gro off"
 SUBSYSTEM=="net", ACTION=="add", KERNEL=="eth0", RUN+="/usr/sbin/ethtool -K %k lro off"
@@ -148,6 +149,7 @@ sed -i "s/eth0/$ETHERCAT_INTERFACE/g" /etc/udev/rules.d/99-ethercat.rules
 
 # Reload udev rules
 udevadm control --reload-rules
+udevadm trigger
 
 log "Udev rules created and reloaded"
 
