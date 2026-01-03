@@ -26,6 +26,14 @@ fi
 
 DEFAULT_USERNAME="$ACTUAL_USER"
 
+# Default machine configuration (can be overridden by command line args)
+MACHINE_TYPE="ihsv-single"
+MACHINE_NAME="IHSV-57 Single Axis"
+CONFIG_PATH="ethercat/ihsv-homing"
+GIT_BRANCH="main"
+GIT_PULL=true
+HOSTNAME="$DEFAULT_HOSTNAME"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -71,7 +79,7 @@ show_banner() {
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
 ║     LinuxCNC Machine Auto-Installer                          ║
-║     Version 1.0.2                                            ║
+║     Version 1.0.3                                            ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF
@@ -384,6 +392,25 @@ parse_args() {
         case $1 in
             --machine)
                 MACHINE_TYPE="$2"
+                # Set MACHINE_NAME and CONFIG_PATH based on type
+                case $MACHINE_TYPE in
+                    ihsv-single)
+                        MACHINE_NAME="IHSV-57 Single Axis"
+                        CONFIG_PATH="ethercat/ihsv-homing"
+                        ;;
+                    xyz-gantry)
+                        MACHINE_NAME="XYZ Gantry"
+                        CONFIG_PATH="ethercat/xyz-gantry"
+                        ;;
+                    xyyz-gantry)
+                        MACHINE_NAME="XYYZ Gantry (Dual Y)"
+                        CONFIG_PATH="ethercat/xyyz-gantry"
+                        ;;
+                    *)
+                        MACHINE_NAME="Custom ($MACHINE_TYPE)"
+                        CONFIG_PATH="$MACHINE_TYPE"
+                        ;;
+                esac
                 shift 2
                 ;;
             --branch)
@@ -447,8 +474,33 @@ if [ $# -gt 0 ]; then
     parse_args "$@"
     # Run non-interactively
     check_root
+    
+    # Run pre-flight checks
+    run_module "preflight-checks"
+    
+    # Show what we're doing
     show_summary
-    main
+    
+    # Start installation
+    log "Starting installation..."
+    install_system_basics
+    clone_or_update_repo
+    run_module "install-ethercat"
+    run_module "install-linuxcnc"
+    run_module "optimize-realtime"
+    run_module "setup-machine-config"
+    
+    # Final summary
+    echo ""
+    log "Installation complete!"
+    echo ""
+    echo "=== Next Steps ==="
+    echo "1. Reboot the system: sudo reboot"
+    echo "2. Run latency test: latency-histogram"
+    echo "3. Start LinuxCNC with your config"
+    echo ""
+    echo "Configuration location: $ACTUAL_HOME/LinuxCNC/$CONFIG_PATH"
+    echo ""
 else
     # Run interactively
     main

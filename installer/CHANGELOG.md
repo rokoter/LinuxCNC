@@ -5,6 +5,27 @@ All notable changes to the LinuxCNC Auto-Installer project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2025-01-03
+
+### Fixed
+- **CRITICAL**: Fixed "MACHINE_NAME: unbound variable" error in non-interactive mode
+  - Added default values for all required variables
+  - Enhanced parse_args() to set MACHINE_NAME and CONFIG_PATH
+  - Fixed non-interactive flow to work with --local flag
+
+### Improved
+- Non-interactive mode now works correctly when called via bootstrap
+- Better default handling for command-line arguments
+- Cleaner separation between interactive and non-interactive flows
+
+### Technical Details
+- Set default values at script start: MACHINE_TYPE, MACHINE_NAME, CONFIG_PATH, etc.
+- parse_args() now sets MACHINE_NAME based on MACHINE_TYPE
+- Non-interactive path no longer calls main(), executes steps directly
+- All variables initialized before use (fixes "unbound variable" errors)
+
+---
+
 ## [1.0.2] - 2025-01-01
 
 ### Fixed
