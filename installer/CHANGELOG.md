@@ -5,6 +5,29 @@ All notable changes to the LinuxCNC Auto-Installer project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2025-01-01
+
+### Fixed
+- **CRITICAL**: Fixed git conflict error when running bootstrap script on fresh install
+  - Bootstrap script now passes `--local` flag to installer
+  - Prevents "local changes would be overwritten" error
+  - Installer no longer tries to update repository that bootstrap already updated
+
+### Improved
+- Enhanced `clone_or_update_repo()` function with interactive git conflict resolution
+  - Detects local changes before attempting checkout
+  - Offers 4 options: stash, commit, discard, or skip
+  - Better error messages with clear guidance
+  - Prevents git operation failures
+
+### Technical Details
+- Bootstrap scripts now pass `--local` to prevent duplicate git operations
+- Added `git diff-index` check before attempting repository updates
+- Interactive prompts for resolving git conflicts
+- Auto-stash/commit functionality with timestamps
+
+---
+
 ## [1.0.1] - 2025-01-01
 
 ### Fixed

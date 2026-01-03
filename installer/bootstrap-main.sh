@@ -172,12 +172,16 @@ echo ""
 # Run the actual installer
 cd "$INSTALLER_DIR"
 
-# Redirect stdin from /dev/tty so interactive prompts work
+# Since bootstrap already cloned/updated the repo, tell installer to use local files
+# This prevents git conflicts during installation
+INSTALLER_ARGS="--local $@"
+
+# Redirect stdin from /dev/tty so interactive prompts prompts work
 # Even when bootstrap was piped from curl
 if [ -t 0 ]; then
     # stdin is already a terminal
-    exec bash "$INSTALLER_SCRIPT" "$@"
+    exec bash "$INSTALLER_SCRIPT" $INSTALLER_ARGS
 else
     # stdin is NOT a terminal (piped from curl), redirect from /dev/tty
-    exec bash "$INSTALLER_SCRIPT" "$@" < /dev/tty
+    exec bash "$INSTALLER_SCRIPT" $INSTALLER_ARGS < /dev/tty
 fi

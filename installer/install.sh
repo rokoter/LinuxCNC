@@ -71,7 +71,7 @@ show_banner() {
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
 ║     LinuxCNC Machine Auto-Installer                          ║
-║     Version 1.0.0                                            ║
+║     Version 1.0.2                                            ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF
@@ -256,9 +256,56 @@ clone_or_update_repo() {
             error "Failed to change to repository directory"
             return 1
         }
+        
+        # Check for local changes
+        if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+            warn "Local changes detected in repository"
+            echo ""
+            echo "Options:"
+            echo "1) Stash changes and pull (RECOMMENDED)"
+            echo "2) Commit changes locally"
+            echo "3) Discard local changes (DESTRUCTIVE)"
+            echo "4) Skip git update (use local files)"
+            echo ""
+            read -p "Choice [1]: " GIT_CHOICE
+            GIT_CHOICE=${GIT_CHOICE:-1}
+            
+            case $GIT_CHOICE in
+                1)
+                    log "Stashing local changes..."
+                    git stash push -m "Auto-stash before installer update - $(date +%Y%m%d-%H%M%S)"
+                    ;;
+                2)
+                    log "Committing local changes..."
+                    git add -A
+                    git commit -m "Auto-commit before installer update - $(date +%Y%m%d-%H%M%S)"
+                    ;;
+                3)
+                    warn "Discarding local changes..."
+                    git reset --hard HEAD
+                    git clean -fd
+                    ;;
+                4)
+                    log "Skipping git update, using local files"
+                    return 0
+                    ;;
+                *)
+                    error "Invalid choice, aborting"
+                    return 1
+                    ;;
+            esac
+        fi
+        
+        # Now safe to checkout and pull
         git fetch origin
-        git checkout "$GIT_BRANCH"
-        git pull origin "$GIT_BRANCH"
+        git checkout "$GIT_BRANCH" || {
+            error "Failed to checkout branch $GIT_BRANCH"
+            warn "You may need to manually resolve git issues"
+            return 1
+        }
+        git pull origin "$GIT_BRANCH" || {
+            warn "Git pull failed, continuing with current version"
+        }
     else
         log "Cloning repository..."
         cd "$ACTUAL_HOME" || {
