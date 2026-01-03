@@ -5,6 +5,28 @@ All notable changes to the LinuxCNC Auto-Installer project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] - 2025-01-03
+
+### Fixed
+- **Prevent apt upgrade errors from raspi-firmware on x86 systems**
+  - Debian LinuxCNC ISO sometimes includes raspi-firmware on x86 systems
+  - Causes `initramfs-tools` configuration errors during upgrade
+  - Now safely removes raspi-firmware ONLY on x86/x86_64 systems
+  - Preserves raspi-firmware on ARM systems (Raspberry Pi)
+
+### Added
+- Architecture detection before package cleanup
+- Safe removal of incompatible ARM packages on x86
+- Logging of detected architecture type
+
+### Technical Details
+- Uses `uname -m` to detect architecture (x86_64, i686, armv7l, aarch64)
+- Only removes raspi-firmware if: (1) x86 architecture AND (2) package installed
+- Prevents dpkg errors: "raspi-firmware: missing /boot/firmware"
+- Ensures clean apt upgrade on mixed-architecture ISO images
+
+---
+
 ## [1.0.7] - 2025-01-03
 
 ### Improved

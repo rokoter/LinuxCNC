@@ -80,7 +80,7 @@ show_banner() {
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
 ║     LinuxCNC Machine Auto-Installer                          ║
-║     Version 1.0.7                                            ║
+║     Version 1.0.8                                            ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF
@@ -232,6 +232,19 @@ install_system_basics() {
     # Update system
     log "Updating package lists..."
     apt-get update
+    
+    # Clean up incompatible packages before upgrade (on x86 only)
+    ARCH=$(uname -m)
+    if [[ "$ARCH" == "x86_64" ]] || [[ "$ARCH" == "i686" ]]; then
+        # We're on x86, check for ARM-specific packages
+        if dpkg -l | grep -q "raspi-firmware"; then
+            log "Detected raspi-firmware on x86 system (incompatible)"
+            log "Removing raspi-firmware to prevent upgrade errors..."
+            apt-get remove --purge -y raspi-firmware 2>/dev/null || warn "Could not remove raspi-firmware"
+        fi
+    else
+        log "ARM architecture detected ($ARCH), keeping platform-specific packages"
+    fi
     
     # Check if we should upgrade
     if [ "$SKIP_UPGRADE" = false ]; then
