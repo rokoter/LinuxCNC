@@ -80,7 +80,7 @@ show_banner() {
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
 ║     LinuxCNC Machine Auto-Installer                          ║
-║     Version 1.1.0                                            ║
+║     Version 1.1.1                                            ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF
@@ -233,22 +233,25 @@ install_system_basics() {
     ARCH=$(uname -m)
     if [[ "$ARCH" == "x86_64" ]] || [[ "$ARCH" == "i686" ]]; then
         # We're on x86, raspi-firmware is incompatible and causes dpkg errors
-        if dpkg -l 2>/dev/null | grep -q "^ii.*raspi-firmware"; then
-            log "Detected raspi-firmware on x86 system (incompatible)"
-            log "Force removing raspi-firmware to prevent dpkg errors..."
+        if dpkg -l 2>/dev/null | grep -q "raspi" || [ -f /etc/initramfs/post-update.d/z50-raspi-firmware ]; then
+            log "Detected raspi-firmware components on x86 system (incompatible)"
+            log "Removing raspi-firmware hooks and packages..."
             
-            # Force remove with dpkg, bypassing dependency checks
-            # This is safe because the package shouldn't be here anyway
-            dpkg --remove --force-all raspi-firmware 2>/dev/null || true
-            dpkg --purge --force-all raspi-firmware 2>/dev/null || true
+            # Remove the initramfs/kernel hooks FIRST (these cause the actual errors)
+            rm -f /etc/initramfs/post-update.d/z50-raspi-firmware 2>/dev/null
+            rm -f /etc/kernel/postinst.d/z50-raspi-firmware 2>/dev/null
+            rm -f /etc/kernel/postrm.d/z50-raspi-firmware 2>/dev/null
             
-            log "Raspi-firmware removed"
+            # Now purge all raspi packages
+            apt-get purge -y '*raspi*' 2>/dev/null || true
+            
+            log "Raspi-firmware components removed"
         fi
     else
         log "ARM architecture detected ($ARCH), keeping platform-specific packages"
     fi
     
-    # Now fix any broken package state (after raspi-firmware is gone)
+    # Now fix any broken package state (after raspi components are gone)
     log "Checking for broken packages..."
     if ! dpkg --configure -a 2>/dev/null; then
         warn "Some packages needed reconfiguration"

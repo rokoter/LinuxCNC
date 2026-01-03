@@ -5,6 +5,32 @@ All notable changes to the LinuxCNC Auto-Installer project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-01-03
+
+### Fixed
+- **Remove raspi-firmware hooks that cause initramfs errors**
+  - The actual problem: initramfs hooks in `/etc/` directories
+  - These remain even after package removal
+  - Now removes hooks BEFORE purging packages
+  - Solution from LinuxCNC forum verified to work
+
+### Changed
+- Remove these hooks on x86 systems:
+  - `/etc/initramfs/post-update.d/z50-raspi-firmware`
+  - `/etc/kernel/postinst.d/z50-raspi-firmware`
+  - `/etc/kernel/postrm.d/z50-raspi-firmware`
+- Then purge all raspi packages: `apt-get purge '*raspi*'`
+- Detection now checks for hooks OR packages
+
+### Technical Details
+The error "raspi-firmware: missing /boot/firmware" comes from the hook scripts,
+not the package itself. These scripts run during initramfs generation and fail
+on x86 systems. Removing the hooks first prevents dpkg errors completely.
+
+Credits: LinuxCNC forum user tommy for the solution.
+
+---
+
 ## [1.1.0] - 2025-01-03
 
 ### Fixed
