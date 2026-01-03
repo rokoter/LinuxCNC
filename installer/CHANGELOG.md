@@ -5,6 +5,29 @@ All notable changes to the LinuxCNC Auto-Installer project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2025-01-03
+
+### Improved
+- **EtherCAT permissions now verified automatically**
+  - Removed manual "Fix EtherCAT permissions" from Next Steps
+  - Added automatic verification at end of installation
+  - Shows ✓ if permissions are correct (666 or 777)
+  - Shows ⚠ warning only if permissions actually need fixing
+  - Better user experience - no unnecessary manual steps
+
+### Fixed
+- Next Steps list reduced from 5 to 4 items
+- Only shows EtherCAT permission warning if actually needed
+- Clearer messaging about when reboot will fix permissions
+
+### Technical Details
+- Added `stat -c "%a"` check for /dev/EtherCAT0 permissions
+- Verifies permissions are 666 or 777
+- Warns user only if permissions are incorrect after installation
+- Handles case where /dev/EtherCAT0 doesn't exist yet
+
+---
+
 ## [1.0.6] - 2025-01-03
 
 ### Added

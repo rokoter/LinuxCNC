@@ -80,7 +80,7 @@ show_banner() {
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
 ║     LinuxCNC Machine Auto-Installer                          ║
-║     Version 1.0.6                                            ║
+║     Version 1.0.7                                            ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF
@@ -406,7 +406,22 @@ main() {
     echo "=================================================================="
     echo ""
     
+    # Verify EtherCAT permissions
+    if [ -e /dev/EtherCAT0 ]; then
+        ETHERCAT_PERMS=$(stat -c "%a" /dev/EtherCAT0 2>/dev/null || echo "000")
+        if [ "$ETHERCAT_PERMS" = "666" ] || [ "$ETHERCAT_PERMS" = "777" ]; then
+            log "✓ EtherCAT permissions verified: $ETHERCAT_PERMS"
+        else
+            warn "⚠ EtherCAT permissions incorrect: $ETHERCAT_PERMS (should be 666)"
+            warn "  Run after reboot: sudo chmod 666 /dev/EtherCAT0"
+        fi
+    else
+        warn "⚠ /dev/EtherCAT0 not found (EtherCAT service may not be running)"
+        warn "  Permissions will be set automatically after reboot"
+    fi
+    
     # Show BIOS recommendations
+    echo ""
     echo "⚙️  IMPORTANT: BIOS Configuration Required"
     echo ""
     echo "For optimal realtime performance, configure your BIOS:"
@@ -430,8 +445,7 @@ main() {
     echo "1. Configure BIOS settings (see above)"
     echo "2. Reboot the system: sudo reboot"
     echo "3. Run latency test: latency-histogram (target: <50µs)"
-    echo "4. Fix EtherCAT permissions: sudo chmod 666 /dev/EtherCAT0"
-    echo "5. Start LinuxCNC: linuxcnc ~/linuxcnc/configs/active-machine/<config>.ini"
+    echo "4. Start LinuxCNC: linuxcnc ~/linuxcnc/configs/active-machine/<config>.ini"
     echo ""
     echo "Configuration: $ACTUAL_HOME/LinuxCNC/$CONFIG_PATH"
     echo ""
@@ -572,7 +586,22 @@ if [ $# -gt 0 ]; then
     echo "=================================================================="
     echo ""
     
+    # Verify EtherCAT permissions
+    if [ -e /dev/EtherCAT0 ]; then
+        ETHERCAT_PERMS=$(stat -c "%a" /dev/EtherCAT0 2>/dev/null || echo "000")
+        if [ "$ETHERCAT_PERMS" = "666" ] || [ "$ETHERCAT_PERMS" = "777" ]; then
+            log "✓ EtherCAT permissions verified: $ETHERCAT_PERMS"
+        else
+            warn "⚠ EtherCAT permissions incorrect: $ETHERCAT_PERMS (should be 666)"
+            warn "  Run after reboot: sudo chmod 666 /dev/EtherCAT0"
+        fi
+    else
+        warn "⚠ /dev/EtherCAT0 not found (EtherCAT service may not be running)"
+        warn "  Permissions will be set automatically after reboot"
+    fi
+    
     # Show BIOS recommendations
+    echo ""
     echo "⚙️  IMPORTANT: BIOS Configuration Required"
     echo ""
     echo "For optimal realtime performance, configure your BIOS:"
@@ -596,8 +625,7 @@ if [ $# -gt 0 ]; then
     echo "1. Configure BIOS settings (see above)"
     echo "2. Reboot the system: sudo reboot"
     echo "3. Run latency test: latency-histogram (target: <50µs)"
-    echo "4. Fix EtherCAT permissions: sudo chmod 666 /dev/EtherCAT0"
-    echo "5. Start LinuxCNC: linuxcnc ~/linuxcnc/configs/active-machine/<config>.ini"
+    echo "4. Start LinuxCNC: linuxcnc ~/linuxcnc/configs/active-machine/<config>.ini"
     echo ""
     echo "Configuration: $ACTUAL_HOME/LinuxCNC/$CONFIG_PATH"
     echo ""
